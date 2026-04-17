@@ -1,0 +1,20 @@
+{
+  "name": "jintel-sdk",
+  "version": "0.1.0",
+  "description": "Public SDK monorepo for the Jintel intelligence API — TypeScript client, CLI, MCP server, and Claude Code plugin.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build",
+    "typecheck": "pnpm -r --filter './packages/*' typecheck",
+    "test": "pnpm -r --filter './packages/*' test",
+    "publish:client": "bash scripts/publish-client.sh",
+    "publish:cli": "bash scripts/publish-cli.sh",
+    "publish:mcp": "bash scripts/publish-mcp.sh"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}

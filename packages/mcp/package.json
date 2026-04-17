@@ -1,0 +1,53 @@
+{
+  "name": "@yojinhq/jintel-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for the Jintel intelligence API",
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "jintel-mcp": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/server.js",
+      "types": "./dist/server.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YojinHQ/jintel-sdk.git",
+    "directory": "packages/mcp"
+  },
+  "keywords": [
+    "jintel",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "financial-data"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin.js",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/bin.js",
+    "prepublishOnly": "tsc && chmod +x dist/bin.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@yojinhq/jintel-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}

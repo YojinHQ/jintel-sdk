@@ -1,0 +1,42 @@
+{
+  "name": "@yojinhq/jintel-cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for the Jintel intelligence API",
+  "type": "module",
+  "bin": {
+    "jintel": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YojinHQ/jintel-sdk.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "jintel",
+    "cli",
+    "financial-data",
+    "market-data"
+  ],
+  "scripts": {
+    "build": "tsc && chmod +x dist/bin.js",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@yojinhq/jintel-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}

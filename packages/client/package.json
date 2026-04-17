@@ -1,0 +1,49 @@
+{
+  "name": "@yojinhq/jintel-client",
+  "version": "0.18.0",
+  "description": "TypeScript client for the Jintel intelligence API",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YojinHQ/jintel-sdk.git",
+    "directory": "packages/client"
+  },
+  "keywords": [
+    "jintel",
+    "graphql",
+    "financial-data",
+    "api-client",
+    "market-data"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsc"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "jintel": {
+      "command": "npx",
+      "args": ["-y", "@yojinhq/jintel-mcp"],
+      "env": {
+        "JINTEL_API_KEY": "${JINTEL_API_KEY}"
+      }
+    }
+  }
+}

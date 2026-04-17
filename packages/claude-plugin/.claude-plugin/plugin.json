@@ -1,0 +1,20 @@
+{
+  "name": "jintel",
+  "version": "0.1.0",
+  "description": "Financial intelligence for Claude — market data, news, regulatory filings, sanctions screening, macro indicators, and more via the Jintel API.",
+  "author": {
+    "name": "Othentic Labs",
+    "url": "https://api.jintel.ai"
+  },
+  "homepage": "https://api.jintel.ai",
+  "repository": "https://github.com/YojinHQ/jintel-sdk",
+  "license": "MIT",
+  "keywords": [
+    "finance",
+    "market-data",
+    "sec",
+    "sanctions",
+    "mcp",
+    "jintel"
+  ]
+}

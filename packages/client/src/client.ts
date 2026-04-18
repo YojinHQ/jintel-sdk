@@ -17,6 +17,7 @@ import {
   buildEnrichQuery,
 } from './queries.js';
 import type {
+  ArraySubGraphOptions,
   EconomicDataPoint,
   EnrichmentField,
   Entity,
@@ -398,17 +399,25 @@ export class JintelClient {
     }
   }
 
-  async enrichEntity(ticker: string, fields?: EnrichmentField[]): Promise<JintelResult<Entity>> {
+  async enrichEntity(
+    ticker: string,
+    fields?: EnrichmentField[],
+    options?: EnrichOptions,
+  ): Promise<JintelResult<Entity>> {
     try {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
-      const query = buildEnrichQuery(selectedFields);
-      const data = await this.request<Entity>(
-        query,
-        { id: ticker },
-        {
-          key: 'entity',
-        },
-      );
+      const query = buildEnrichQuery(selectedFields, options);
+      const variables: Record<string, unknown> = { id: ticker };
+      if (options?.filter) variables.filter = options.filter;
+      if (options?.filingsFilter) variables.filingsFilter = options.filingsFilter;
+      if (options?.riskSignalFilter) variables.riskSignalFilter = options.riskSignalFilter;
+      if (options?.futuresFilter) variables.futuresFilter = options.futuresFilter;
+      if (options?.optionsFilter) variables.optionsFilter = options.optionsFilter;
+      if (options?.topHolders) {
+        if (options.topHolders.limit != null) variables.topHoldersLimit = options.topHolders.limit;
+        if (options.topHolders.offset != null) variables.topHoldersOffset = options.topHolders.offset;
+      }
+      const data = await this.request<Entity>(query, variables, { key: 'entity' });
       if (!data) {
         return { success: false, error: `Entity not found: ${ticker}` };
       }
@@ -442,9 +451,11 @@ export class JintelClient {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
       const query = buildBatchEnrichQuery(selectedFields, options);
       const variables: Record<string, unknown> = { tickers };
-      if (options?.filter) {
-        variables.filter = options.filter;
-      }
+      if (options?.filter) variables.filter = options.filter;
+      if (options?.filingsFilter) variables.filingsFilter = options.filingsFilter;
+      if (options?.riskSignalFilter) variables.riskSignalFilter = options.riskSignalFilter;
+      if (options?.futuresFilter) variables.futuresFilter = options.futuresFilter;
+      if (options?.optionsFilter) variables.optionsFilter = options.optionsFilter;
       if (options?.topHolders) {
         if (options.topHolders.limit != null) variables.topHoldersLimit = options.topHolders.limit;
         if (options.topHolders.offset != null) variables.topHoldersOffset = options.topHolders.offset;
@@ -536,9 +547,14 @@ export class JintelClient {
     }
   }
 
-  async shortInterest(ticker: string): Promise<JintelResult<ShortInterestReport[]>> {
+  async shortInterest(
+    ticker: string,
+    filter?: ArraySubGraphOptions,
+  ): Promise<JintelResult<ShortInterestReport[]>> {
     try {
-      const data = await this.request<ShortInterestReport[]>(SHORT_INTEREST, { ticker }, { key: 'shortInterest' });
+      const variables: Record<string, unknown> = { ticker };
+      if (filter) variables.filter = filter;
+      const data = await this.request<ShortInterestReport[]>(SHORT_INTEREST, variables, { key: 'shortInterest' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
@@ -563,7 +579,7 @@ export class JintelClient {
    */
   async institutionalHoldings(
     cik: string,
-    filter?: { since?: string; until?: string; limit?: number; sort?: 'ASC' | 'DESC' },
+    filter?: ArraySubGraphOptions,
   ): Promise<JintelResult<InstitutionalHolding[]>> {
     try {
       const variables: Record<string, unknown> = { cik };
@@ -577,10 +593,15 @@ export class JintelClient {
     }
   }
 
-  async famaFrenchFactors(series: FamaFrenchSeries, range?: string): Promise<JintelResult<FactorDataPoint[]>> {
+  async famaFrenchFactors(
+    series: FamaFrenchSeries,
+    range?: string,
+    filter?: ArraySubGraphOptions,
+  ): Promise<JintelResult<FactorDataPoint[]>> {
     try {
       const variables: Record<string, unknown> = { series };
       if (range) variables.range = range;
+      if (filter) variables.filter = filter;
       const data = await this.request<FactorDataPoint[]>(FAMA_FRENCH_FACTORS, variables, {
         key: 'famaFrenchFactors',
       });
@@ -592,11 +613,17 @@ export class JintelClient {
 
   /**
    * GDP data by country via OECD. Pass `type` to select REAL, NOMINAL, or FORECAST.
+   * Optional `filter` slices by date range and limit (ArrayFilterInput).
    */
-  async gdp(country: string, type?: GdpType): Promise<JintelResult<EconomicDataPoint[]>> {
+  async gdp(
+    country: string,
+    type?: GdpType,
+    filter?: ArraySubGraphOptions,
+  ): Promise<JintelResult<EconomicDataPoint[]>> {
     try {
       const variables: Record<string, unknown> = { country };
       if (type) variables.type = type;
+      if (filter) variables.filter = filter;
       const data = await this.request<EconomicDataPoint[]>(GDP, variables, { key: 'gdp' });
       return { success: true, data: data ?? [] };
     } catch (err) {
@@ -605,11 +632,13 @@ export class JintelClient {
   }
 
   /**
-   * CPI / inflation data by country via OECD.
+   * CPI / inflation data by country via OECD. Optional `filter` (ArrayFilterInput).
    */
-  async inflation(country: string): Promise<JintelResult<EconomicDataPoint[]>> {
+  async inflation(country: string, filter?: ArraySubGraphOptions): Promise<JintelResult<EconomicDataPoint[]>> {
     try {
-      const data = await this.request<EconomicDataPoint[]>(INFLATION, { country }, { key: 'inflation' });
+      const variables: Record<string, unknown> = { country };
+      if (filter) variables.filter = filter;
+      const data = await this.request<EconomicDataPoint[]>(INFLATION, variables, { key: 'inflation' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
@@ -617,11 +646,13 @@ export class JintelClient {
   }
 
   /**
-   * Policy interest rates by country via OECD.
+   * Policy interest rates by country via OECD. Optional `filter` (ArrayFilterInput).
    */
-  async interestRates(country: string): Promise<JintelResult<EconomicDataPoint[]>> {
+  async interestRates(country: string, filter?: ArraySubGraphOptions): Promise<JintelResult<EconomicDataPoint[]>> {
     try {
-      const data = await this.request<EconomicDataPoint[]>(INTEREST_RATES, { country }, { key: 'interestRates' });
+      const variables: Record<string, unknown> = { country };
+      if (filter) variables.filter = filter;
+      const data = await this.request<EconomicDataPoint[]>(INTEREST_RATES, variables, { key: 'interestRates' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
@@ -630,10 +661,13 @@ export class JintelClient {
 
   /**
    * S&P 500 valuation multiples via Multpl (PE, CAPE, dividend yield, etc).
+   * Optional `filter` (ArrayFilterInput) to slice the historical series.
    */
-  async sp500Multiples(series: SP500Series): Promise<JintelResult<SP500DataPoint[]>> {
+  async sp500Multiples(series: SP500Series, filter?: ArraySubGraphOptions): Promise<JintelResult<SP500DataPoint[]>> {
     try {
-      const data = await this.request<SP500DataPoint[]>(SP500_MULTIPLES, { series }, { key: 'sp500Multiples' });
+      const variables: Record<string, unknown> = { series };
+      if (filter) variables.filter = filter;
+      const data = await this.request<SP500DataPoint[]>(SP500_MULTIPLES, variables, { key: 'sp500Multiples' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);

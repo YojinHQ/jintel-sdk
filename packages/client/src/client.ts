@@ -9,15 +9,21 @@ import {
   CAMPAIGN_FINANCE,
   MARKET_STATUS,
   INSTITUTIONAL_HOLDINGS,
+  GDP,
+  INFLATION,
+  INTEREST_RATES,
+  SP500_MULTIPLES,
   buildBatchEnrichQuery,
   buildEnrichQuery,
 } from './queries.js';
 import type {
+  EconomicDataPoint,
   EnrichmentField,
   Entity,
   EntityType,
   FamaFrenchSeries,
   FactorDataPoint,
+  GdpType,
   GraphQLError,
   GraphQLResponse,
   InstitutionalHolding,
@@ -28,6 +34,8 @@ import type {
   RequestOptions,
   SanctionsMatch,
   ShortInterestReport,
+  SP500DataPoint,
+  SP500Series,
   TickerPriceHistory,
   USMarketStatus,
 } from './types.js';
@@ -576,6 +584,56 @@ export class JintelClient {
       const data = await this.request<FactorDataPoint[]>(FAMA_FRENCH_FACTORS, variables, {
         key: 'famaFrenchFactors',
       });
+      return { success: true, data: data ?? [] };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * GDP data by country via OECD. Pass `type` to select REAL, NOMINAL, or FORECAST.
+   */
+  async gdp(country: string, type?: GdpType): Promise<JintelResult<EconomicDataPoint[]>> {
+    try {
+      const variables: Record<string, unknown> = { country };
+      if (type) variables.type = type;
+      const data = await this.request<EconomicDataPoint[]>(GDP, variables, { key: 'gdp' });
+      return { success: true, data: data ?? [] };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * CPI / inflation data by country via OECD.
+   */
+  async inflation(country: string): Promise<JintelResult<EconomicDataPoint[]>> {
+    try {
+      const data = await this.request<EconomicDataPoint[]>(INFLATION, { country }, { key: 'inflation' });
+      return { success: true, data: data ?? [] };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * Policy interest rates by country via OECD.
+   */
+  async interestRates(country: string): Promise<JintelResult<EconomicDataPoint[]>> {
+    try {
+      const data = await this.request<EconomicDataPoint[]>(INTEREST_RATES, { country }, { key: 'interestRates' });
+      return { success: true, data: data ?? [] };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * S&P 500 valuation multiples via Multpl (PE, CAPE, dividend yield, etc).
+   */
+  async sp500Multiples(series: SP500Series): Promise<JintelResult<SP500DataPoint[]>> {
+    try {
+      const data = await this.request<SP500DataPoint[]>(SP500_MULTIPLES, { series }, { key: 'sp500Multiples' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);

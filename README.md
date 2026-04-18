@@ -15,6 +15,8 @@ Get an API key at [api.jintel.ai](https://api.jintel.ai).
 
 All four wrap the same GraphQL API.
 
+Array sub-graphs accept a per-field `filter` argument — generic date/limit/sort via `ArrayFilterInput`, plus domain-specific inputs for SEC filings (`FilingsFilterInput`), risk signals (`RiskSignalFilterInput`), futures (`FuturesCurveFilterInput`), and options chains (`OptionsChainFilterInput`). See [`packages/client/README.md`](packages/client/README.md#filtering-array-sub-graphs) for examples.
+
 ## Quick start
 
 ```bash

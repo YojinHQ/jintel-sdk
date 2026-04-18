@@ -18,6 +18,7 @@ import {
 } from './queries.js';
 import type {
   ArraySubGraphOptions,
+  CampaignFinanceFilterOptions,
   EconomicDataPoint,
   EnrichmentField,
   Entity,
@@ -33,6 +34,7 @@ import type {
   MarketQuote,
   PACCommittee,
   RequestOptions,
+  SanctionsFilterOptions,
   SanctionsMatch,
   ShortInterestReport,
   SP500DataPoint,
@@ -42,6 +44,33 @@ import type {
 } from './types.js';
 import { ALL_ENRICHMENT_FIELDS, GraphQLResponseSchema } from './types.js';
 import type { EnrichOptions } from './types.js';
+
+// ── Filter Variables ──────────────────────────────────────────────────────────
+
+/**
+ * Map EnrichOptions onto the GraphQL variables object expected by the query builder.
+ * Only includes variables for filters that were actually set, matching what
+ * `buildEnrichQuery` / `buildBatchEnrichQuery` declare.
+ */
+function enrichFilterVariables(options?: EnrichOptions): Record<string, unknown> {
+  if (!options) return {};
+  const vars: Record<string, unknown> = {};
+  if (options.filter) vars.filter = options.filter;
+  if (options.filingsFilter) vars.filingsFilter = options.filingsFilter;
+  if (options.riskSignalFilter) vars.riskSignalFilter = options.riskSignalFilter;
+  if (options.futuresFilter) vars.futuresFilter = options.futuresFilter;
+  if (options.optionsFilter) vars.optionsFilter = options.optionsFilter;
+  if (options.newsFilter) vars.newsFilter = options.newsFilter;
+  if (options.executivesFilter) vars.executivesFilter = options.executivesFilter;
+  if (options.insiderTradesFilter) vars.insiderTradesFilter = options.insiderTradesFilter;
+  if (options.earningsFilter) vars.earningsFilter = options.earningsFilter;
+  if (options.segmentedRevenueFilter) vars.segmentedRevenueFilter = options.segmentedRevenueFilter;
+  if (options.topHoldersFilter) vars.topHoldersFilter = options.topHoldersFilter;
+  if (options.financialStatementsFilter) vars.financialStatementsFilter = options.financialStatementsFilter;
+  if (options.sanctionsFilter) vars.sanctionsFilter = options.sanctionsFilter;
+  if (options.campaignFinanceFilter) vars.campaignFinanceFilter = options.campaignFinanceFilter;
+  return vars;
+}
 
 // ── Response Cache ────────────────────────────────────────────────────────────
 
@@ -407,16 +436,7 @@ export class JintelClient {
     try {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
       const query = buildEnrichQuery(selectedFields, options);
-      const variables: Record<string, unknown> = { id: ticker };
-      if (options?.filter) variables.filter = options.filter;
-      if (options?.filingsFilter) variables.filingsFilter = options.filingsFilter;
-      if (options?.riskSignalFilter) variables.riskSignalFilter = options.riskSignalFilter;
-      if (options?.futuresFilter) variables.futuresFilter = options.futuresFilter;
-      if (options?.optionsFilter) variables.optionsFilter = options.optionsFilter;
-      if (options?.topHolders) {
-        if (options.topHolders.limit != null) variables.topHoldersLimit = options.topHolders.limit;
-        if (options.topHolders.offset != null) variables.topHoldersOffset = options.topHolders.offset;
-      }
+      const variables: Record<string, unknown> = { id: ticker, ...enrichFilterVariables(options) };
       const data = await this.request<Entity>(query, variables, { key: 'entity' });
       if (!data) {
         return { success: false, error: `Entity not found: ${ticker}` };
@@ -450,16 +470,7 @@ export class JintelClient {
     try {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
       const query = buildBatchEnrichQuery(selectedFields, options);
-      const variables: Record<string, unknown> = { tickers };
-      if (options?.filter) variables.filter = options.filter;
-      if (options?.filingsFilter) variables.filingsFilter = options.filingsFilter;
-      if (options?.riskSignalFilter) variables.riskSignalFilter = options.riskSignalFilter;
-      if (options?.futuresFilter) variables.futuresFilter = options.futuresFilter;
-      if (options?.optionsFilter) variables.optionsFilter = options.optionsFilter;
-      if (options?.topHolders) {
-        if (options.topHolders.limit != null) variables.topHoldersLimit = options.topHolders.limit;
-        if (options.topHolders.offset != null) variables.topHoldersOffset = options.topHolders.offset;
-      }
+      const variables: Record<string, unknown> = { tickers, ...enrichFilterVariables(options) };
 
       if (this.responseCache) {
         const key = this.responseCache.enrichKey(tickers, selectedFields);
@@ -495,10 +506,19 @@ export class JintelClient {
     }
   }
 
-  async sanctionsScreen(name: string, country?: string): Promise<JintelResult<SanctionsMatch[]>> {
+  /**
+   * OFAC sanctions screening. Accepts `SanctionsFilterInput` to narrow by score,
+   * list name, or sanctions program.
+   */
+  async sanctionsScreen(
+    name: string,
+    country?: string,
+    filter?: SanctionsFilterOptions,
+  ): Promise<JintelResult<SanctionsMatch[]>> {
     try {
       const variables: Record<string, unknown> = { name };
       if (country) variables.country = country;
+      if (filter) variables.filter = filter;
 
       const data = await this.request<SanctionsMatch[]>(SANCTIONS_SCREEN, variables, { key: 'sanctionsScreen' });
       return { success: true, data: data ?? [] };
@@ -561,10 +581,19 @@ export class JintelClient {
     }
   }
 
-  async campaignFinance(name: string, cycle?: number): Promise<JintelResult<PACCommittee[]>> {
+  /**
+   * Campaign finance / PAC data via OpenFEC. Accepts `CampaignFinanceFilterInput`
+   * to narrow by party, state, committee type, or minimum raised.
+   */
+  async campaignFinance(
+    name: string,
+    cycle?: number,
+    filter?: CampaignFinanceFilterOptions,
+  ): Promise<JintelResult<PACCommittee[]>> {
     try {
       const variables: Record<string, unknown> = { name };
       if (cycle != null) variables.cycle = cycle;
+      if (filter) variables.filter = filter;
       const data = await this.request<PACCommittee[]>(CAMPAIGN_FINANCE, variables, { key: 'campaignFinance' });
       return { success: true, data: data ?? [] };
     } catch (err) {

@@ -1,12 +1,20 @@
 import type {
   ArraySubGraphOptions,
+  CampaignFinanceFilterOptions,
+  EarningsFilterOptions,
   EnrichmentField,
   EnrichOptions,
+  ExecutivesFilterOptions,
   FilingsFilterOptions,
+  FinancialStatementFilterOptions,
   FuturesCurveFilterOptions,
+  InsiderTradeFilterOptions,
+  NewsFilterOptions,
   OptionsChainFilterOptions,
   RiskSignalFilterOptions,
-  TopHoldersOptions,
+  SanctionsFilterOptions,
+  SegmentRevenueFilterOptions,
+  TopHoldersFilterOptions,
 } from './types.js';
 
 // ── Field Fragments ────────────────────────────────────────────────────────
@@ -601,8 +609,8 @@ export const QUOTES = `
 export const BATCH_QUOTES = QUOTES;
 
 export const SANCTIONS_SCREEN = `
-  query SanctionsScreen($name: String!, $country: String) {
-    sanctionsScreen(name: $name, country: $country) {
+  query SanctionsScreen($name: String!, $country: String, $filter: SanctionsFilterInput) {
+    sanctionsScreen(name: $name, country: $country, filter: $filter) {
       listName
       matchedName
       score
@@ -690,8 +698,8 @@ export const SHORT_INTEREST = `
   }`;
 
 export const CAMPAIGN_FINANCE = `
-  query CampaignFinance($name: String!, $cycle: Int) {
-    campaignFinance(name: $name, cycle: $cycle) {
+  query CampaignFinance($name: String!, $cycle: Int, $filter: CampaignFinanceFilterInput) {
+    campaignFinance(name: $name, cycle: $cycle, filter: $filter) {
       id
       name
       type
@@ -770,16 +778,100 @@ function hasOptionsFilter(f: OptionsChainFilterOptions | undefined): boolean {
   );
 }
 
+function hasNewsFilter(f: NewsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  if (Array.isArray(f.sources) && f.sources.length > 0) return true;
+  return f.minSentiment != null || f.maxSentiment != null;
+}
+
+function hasExecutivesFilter(f: ExecutivesFilterOptions | undefined): boolean {
+  if (!f) return false;
+  return f.minPay != null || f.limit != null || f.sortBy != null;
+}
+
+function hasInsiderTradesFilter(f: InsiderTradeFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  if (Array.isArray(f.transactionCodes) && f.transactionCodes.length > 0) return true;
+  return (
+    f.isOfficer != null ||
+    f.isDirector != null ||
+    f.isTenPercentOwner != null ||
+    f.onlyUnder10b5One != null ||
+    f.acquiredDisposed != null ||
+    f.minValue != null
+  );
+}
+
+function hasEarningsFilter(f: EarningsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return (
+    f.onlyReported != null ||
+    f.onlyUpcoming != null ||
+    f.minSurprisePercent != null ||
+    f.year != null
+  );
+}
+
+function hasSegmentRevenueFilter(f: SegmentRevenueFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  if (Array.isArray(f.dimensions) && f.dimensions.length > 0) return true;
+  return f.minValue != null;
+}
+
+function hasTopHoldersFilter(f: TopHoldersFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return f.minValue != null || f.offset != null;
+}
+
+function hasFinancialStatementsFilter(f: FinancialStatementFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return Array.isArray(f.periodTypes) && f.periodTypes.length > 0;
+}
+
+function hasSanctionsFilter(f: SanctionsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (f.minScore != null || f.limit != null || f.sort != null) return true;
+  if (Array.isArray(f.listNames) && f.listNames.length > 0) return true;
+  return Array.isArray(f.programs) && f.programs.length > 0;
+}
+
+function hasCampaignFinanceFilter(f: CampaignFinanceFilterOptions | undefined): boolean {
+  if (!f) return false;
+  return (
+    f.cycle != null ||
+    f.party != null ||
+    f.state != null ||
+    f.committeeType != null ||
+    f.minRaised != null ||
+    f.limit != null ||
+    f.sort != null
+  );
+}
+
 interface BuildFlags {
   hasFilter: boolean;
   hasFilingsFilter: boolean;
   hasRiskSignalFilter: boolean;
   hasFuturesFilter: boolean;
   hasOptionsFilter: boolean;
-  hasTopHoldersPagination: boolean;
+  hasNewsFilter: boolean;
+  hasExecutivesFilter: boolean;
+  hasInsiderTradesFilter: boolean;
+  hasEarningsFilter: boolean;
+  hasSegmentRevenueFilter: boolean;
+  hasTopHoldersFilter: boolean;
+  hasFinancialStatementsFilter: boolean;
+  hasSanctionsFilter: boolean;
+  hasCampaignFinanceFilter: boolean;
 }
 
-/** Inline `(filter: $filter)` onto a nested field inside an aggregate block. */
+/** Inline `(filter: $varName)` onto a nested field inside an aggregate block. */
 function withFilterArg(block: string, fieldName: string, varName: string): string {
   return block.replace(new RegExp(`\\b${fieldName}\\s*{`), `${fieldName}(filter: $${varName}) {`);
 }
@@ -794,10 +886,13 @@ function marketBlock(hasFilter: boolean): string {
   return `market {\n    ${MARKET_QUOTE_FIELDS.trim()}\n    ${FUNDAMENTALS_FIELDS.trim()}\n    ${history}\n    ${keyEvents}\n    ${shortInt}\n  }`;
 }
 
-/** regulatory sub-graph — filings accepts FilingsFilterInput. */
-function regulatoryBlock(hasFilings: boolean): string {
-  if (!hasFilings) return REGULATORY_FIELDS.trim();
-  return withFilterArg(REGULATORY_FIELDS.trim(), 'filings', 'filingsFilter');
+/** regulatory sub-graph — filings/sanctions/campaignFinance each accept their own filter input. */
+function regulatoryBlock(flags: BuildFlags): string {
+  let block = REGULATORY_FIELDS.trim();
+  if (flags.hasFilingsFilter) block = withFilterArg(block, 'filings', 'filingsFilter');
+  if (flags.hasSanctionsFilter) block = withFilterArg(block, 'sanctions', 'sanctionsFilter');
+  if (flags.hasCampaignFinanceFilter) block = withFilterArg(block, 'campaignFinance', 'campaignFinanceFilter');
+  return block;
 }
 
 /** risk sub-graph — signals accepts RiskSignalFilterInput. */
@@ -814,77 +909,89 @@ function derivativesBlock(hasFutures: boolean, hasOptions: boolean): string {
   return block;
 }
 
-/** financials sub-graph — income / balanceSheet / cashFlow each take ArrayFilterInput. */
-function financialsBlock(hasFilter: boolean): string {
-  if (!hasFilter) return FINANCIALS_FIELDS.trim();
+/** financials sub-graph — income / balanceSheet / cashFlow take FinancialStatementFilterInput. */
+function financialsBlock(hasStatementsFilter: boolean): string {
+  if (!hasStatementsFilter) return FINANCIALS_FIELDS.trim();
   let block = FINANCIALS_FIELDS.trim();
-  block = withFilterArg(block, 'income', 'filter');
-  block = withFilterArg(block, 'balanceSheet', 'filter');
-  block = withFilterArg(block, 'cashFlow', 'filter');
+  block = withFilterArg(block, 'income', 'financialStatementsFilter');
+  block = withFilterArg(block, 'balanceSheet', 'financialStatementsFilter');
+  block = withFilterArg(block, 'cashFlow', 'financialStatementsFilter');
   return block;
 }
 
 /** Fields that accept the top-level ArrayFilterInput arg directly on Entity. */
 const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
-  'news',
   'research',
   'social',
   'predictions',
   'discussions',
   'institutionalHoldings',
-  'insiderTrades',
   'earningsPressReleases',
-  'segmentedRevenue',
-  'earnings',
   'periodicFilings',
 ]);
 
 /** Filtered variants of array sub-graph field blocks (top-level Entity fields only). */
 const FILTERED_FIELD_BLOCK_MAP: Partial<Record<EnrichmentField, string>> = {
-  news: `news(filter: $filter) {\n    title\n    link\n    snippet\n    source\n    date\n    imageUrl\n    sentimentScore\n  }`,
   research: `research(filter: $filter) {\n    title\n    url\n    publishedDate\n    author\n    text\n    score\n  }`,
-  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n  }`,
+  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n  }`,
   predictions: `predictions(filter: $filter) {\n    eventId\n    title\n    url\n    outcomes { name probability }\n    outcomesRemaining\n    priceMovement\n    volume24hr\n    volume1mo\n    liquidity\n    date\n    endDate\n  }`,
   discussions: `discussions(filter: $filter) {\n    objectId\n    title\n    url\n    hnUrl\n    author\n    date\n    points\n    numComments\n    topComments { author text points }\n  }`,
   institutionalHoldings: `institutionalHoldings(filter: $filter) {\n    issuerName\n    cusip\n    titleOfClass\n    value\n    shares\n    sharesOrPrincipal\n    investmentDiscretion\n    reportDate\n    filingDate\n  }`,
-  insiderTrades: `insiderTrades(filter: $filter) {\n    accessionNumber\n    filingUrl\n    reporterName\n    reporterCik\n    officerTitle\n    isOfficer\n    isDirector\n    isTenPercentOwner\n    isUnder10b5One\n    securityTitle\n    transactionDate\n    transactionCode\n    acquiredDisposed\n    shares\n    pricePerShare\n    transactionValue\n    sharesOwnedFollowingTransaction\n    ownershipType\n    isDerivative\n    filingDate\n  }`,
   earningsPressReleases: `earningsPressReleases(filter: $filter) {\n    accessionNumber\n    filingDate\n    reportDate\n    items\n    filingUrl\n    pressReleaseUrl\n    body\n    excerpt\n    bodyLength\n    guidance { text metric period direction }\n  }`,
-  segmentedRevenue: `segmentedRevenue(filter: $filter) {\n    accessionNumber\n    filingUrl\n    form\n    filingDate\n    reportDate\n    dimension\n    axis\n    member\n    segment\n    value\n    startDate\n    endDate\n    concept\n  }`,
-  earnings: `earnings(filter: $filter) {\n    period\n    reportDate\n    quarter\n    year\n    epsActual\n    epsEstimate\n    revenueActual\n    revenueEstimate\n    surprisePercent\n    revenueSurprisePercent\n    hour\n  }`,
   periodicFilings: `periodicFilings(filter: $filter) {\n    accessionNumber\n    form\n    filingDate\n    reportDate\n    filingUrl\n    documentUrl\n    sections {\n      item\n      title\n      body\n      excerpt\n      bodyLength\n    }\n  }`,
 };
 
-const TOP_HOLDERS_PAGINATED_BLOCK = `topHolders(limit: $topHoldersLimit, offset: $topHoldersOffset) {
-    filerName
-    cik
-    value
-    shares
-    reportDate
-    filingDate
-  }`;
+function filteredBlock(fieldName: string, varName: string, body: string): string {
+  return `${fieldName}(filter: $${varName}) {\n    ${body}\n  }`;
+}
+
+const NEWS_INNER = NEWS_FIELDS.trim().replace(/^news\s*\{\s*|\s*\}$/g, '').trim();
+const EXECUTIVES_INNER = EXECUTIVES_FIELDS.trim().replace(/^executives\s*\{\s*|\s*\}$/g, '').trim();
+const INSIDER_TRADES_INNER = INSIDER_TRADES_FIELDS.trim().replace(/^insiderTrades\s*\{\s*|\s*\}$/g, '').trim();
+const EARNINGS_INNER = EARNINGS_FIELDS.trim().replace(/^earnings\s*\{\s*|\s*\}$/g, '').trim();
+const SEGMENTED_REVENUE_INNER = SEGMENTED_REVENUE_FIELDS.trim().replace(/^segmentedRevenue\s*\{\s*|\s*\}$/g, '').trim();
+const TOP_HOLDERS_INNER = TOP_HOLDERS_FIELDS.trim().replace(/^topHolders\s*\{\s*|\s*\}$/g, '').trim();
 
 function blockFor(field: EnrichmentField, flags: BuildFlags): string {
   switch (field) {
     case 'market':
       return marketBlock(flags.hasFilter);
     case 'regulatory':
-      return regulatoryBlock(flags.hasFilingsFilter);
+      return regulatoryBlock(flags);
     case 'risk':
       return riskBlock(flags.hasRiskSignalFilter);
     case 'derivatives':
       return derivativesBlock(flags.hasFuturesFilter, flags.hasOptionsFilter);
     case 'financials':
-      return financialsBlock(flags.hasFilter);
+      return financialsBlock(flags.hasFinancialStatementsFilter);
+    case 'news':
+      return flags.hasNewsFilter ? filteredBlock('news', 'newsFilter', NEWS_INNER) : NEWS_FIELDS.trim();
+    case 'executives':
+      return flags.hasExecutivesFilter
+        ? filteredBlock('executives', 'executivesFilter', EXECUTIVES_INNER)
+        : EXECUTIVES_FIELDS.trim();
+    case 'insiderTrades':
+      return flags.hasInsiderTradesFilter
+        ? filteredBlock('insiderTrades', 'insiderTradesFilter', INSIDER_TRADES_INNER)
+        : INSIDER_TRADES_FIELDS.trim();
+    case 'earnings':
+      return flags.hasEarningsFilter
+        ? filteredBlock('earnings', 'earningsFilter', EARNINGS_INNER)
+        : EARNINGS_FIELDS.trim();
+    case 'segmentedRevenue':
+      return flags.hasSegmentRevenueFilter
+        ? filteredBlock('segmentedRevenue', 'segmentedRevenueFilter', SEGMENTED_REVENUE_INNER)
+        : SEGMENTED_REVENUE_FIELDS.trim();
     case 'topHolders':
-      return flags.hasTopHoldersPagination ? TOP_HOLDERS_PAGINATED_BLOCK : TOP_HOLDERS_FIELDS.trim();
+      return flags.hasTopHoldersFilter
+        ? filteredBlock('topHolders', 'topHoldersFilter', TOP_HOLDERS_INNER)
+        : TOP_HOLDERS_FIELDS.trim();
     case 'technicals':
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
       return SENTIMENT_FIELDS.trim();
     case 'analyst':
       return ANALYST_FIELDS.trim();
-    case 'executives':
-      return EXECUTIVES_FIELDS.trim();
     case 'ownership':
       return OWNERSHIP_FIELDS.trim();
     default: {
@@ -926,30 +1033,49 @@ function buildBlocks(fields: EnrichmentField[], flags: BuildFlags): string {
 
 function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
   let vars = '';
-  // Generic ArrayFilterInput is used across many fields — include when any of: top-level array fields, market, financials.
+  // Generic ArrayFilterInput applies to top-level array sub-graphs (research, predictions,
+  // discussions, social, institutionalHoldings, earningsPressReleases, periodicFilings)
+  // plus market.history/keyEvents/shortInterest.
   const genericFilterApplies =
-    flags.hasFilter &&
-    fields.some((f) => ARRAY_SUBGRAPH_FIELDS.has(f) || f === 'market' || f === 'financials');
+    flags.hasFilter && fields.some((f) => ARRAY_SUBGRAPH_FIELDS.has(f) || f === 'market');
   if (genericFilterApplies) vars += ', $filter: ArrayFilterInput';
   if (flags.hasFilingsFilter && fields.includes('regulatory')) vars += ', $filingsFilter: FilingsFilterInput';
+  if (flags.hasSanctionsFilter && fields.includes('regulatory')) vars += ', $sanctionsFilter: SanctionsFilterInput';
+  if (flags.hasCampaignFinanceFilter && fields.includes('regulatory')) vars += ', $campaignFinanceFilter: CampaignFinanceFilterInput';
   if (flags.hasRiskSignalFilter && fields.includes('risk')) vars += ', $riskSignalFilter: RiskSignalFilterInput';
   if (flags.hasFuturesFilter && fields.includes('derivatives')) vars += ', $futuresFilter: FuturesCurveFilterInput';
   if (flags.hasOptionsFilter && fields.includes('derivatives')) vars += ', $optionsFilter: OptionsChainFilterInput';
-  if (flags.hasTopHoldersPagination && fields.includes('topHolders')) vars += ', $topHoldersLimit: Int, $topHoldersOffset: Int';
+  if (flags.hasNewsFilter && fields.includes('news')) vars += ', $newsFilter: NewsFilterInput';
+  if (flags.hasExecutivesFilter && fields.includes('executives')) vars += ', $executivesFilter: ExecutivesFilterInput';
+  if (flags.hasInsiderTradesFilter && fields.includes('insiderTrades')) vars += ', $insiderTradesFilter: InsiderTradeFilterInput';
+  if (flags.hasEarningsFilter && fields.includes('earnings')) vars += ', $earningsFilter: EarningsFilterInput';
+  if (flags.hasSegmentRevenueFilter && fields.includes('segmentedRevenue'))
+    vars += ', $segmentedRevenueFilter: SegmentRevenueFilterInput';
+  if (flags.hasTopHoldersFilter && fields.includes('topHolders'))
+    vars += ', $topHoldersFilter: TopHoldersFilterInput';
+  if (flags.hasFinancialStatementsFilter && fields.includes('financials'))
+    vars += ', $financialStatementsFilter: FinancialStatementFilterInput';
   return vars;
 }
 
 function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlags {
   const enriched = isEnrichOptions(options);
   const filter = enriched ? options.filter : options;
-  const topHolders = enriched ? options.topHolders : undefined;
   return {
     hasFilter: hasAnyField(filter),
     hasFilingsFilter: enriched ? hasFilingsFilter(options.filingsFilter) : false,
     hasRiskSignalFilter: enriched ? hasRiskSignalFilter(options.riskSignalFilter) : false,
     hasFuturesFilter: enriched ? hasFuturesFilter(options.futuresFilter) : false,
     hasOptionsFilter: enriched ? hasOptionsFilter(options.optionsFilter) : false,
-    hasTopHoldersPagination: topHolders != null && (topHolders.limit != null || topHolders.offset != null),
+    hasNewsFilter: enriched ? hasNewsFilter(options.newsFilter) : false,
+    hasExecutivesFilter: enriched ? hasExecutivesFilter(options.executivesFilter) : false,
+    hasInsiderTradesFilter: enriched ? hasInsiderTradesFilter(options.insiderTradesFilter) : false,
+    hasEarningsFilter: enriched ? hasEarningsFilter(options.earningsFilter) : false,
+    hasSegmentRevenueFilter: enriched ? hasSegmentRevenueFilter(options.segmentedRevenueFilter) : false,
+    hasTopHoldersFilter: enriched ? hasTopHoldersFilter(options.topHoldersFilter) : false,
+    hasFinancialStatementsFilter: enriched ? hasFinancialStatementsFilter(options.financialStatementsFilter) : false,
+    hasSanctionsFilter: enriched ? hasSanctionsFilter(options.sanctionsFilter) : false,
+    hasCampaignFinanceFilter: enriched ? hasCampaignFinanceFilter(options.campaignFinanceFilter) : false,
   };
 }
 
@@ -994,14 +1120,24 @@ ${blocks}
   }`;
 }
 
+const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
+  'filter',
+  'filingsFilter',
+  'riskSignalFilter',
+  'futuresFilter',
+  'optionsFilter',
+  'newsFilter',
+  'executivesFilter',
+  'insiderTradesFilter',
+  'earningsFilter',
+  'segmentedRevenueFilter',
+  'topHoldersFilter',
+  'financialStatementsFilter',
+  'sanctionsFilter',
+  'campaignFinanceFilter',
+];
+
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {
   if (!opts || typeof opts !== 'object') return false;
-  return (
-    'filter' in opts ||
-    'filingsFilter' in opts ||
-    'riskSignalFilter' in opts ||
-    'futuresFilter' in opts ||
-    'optionsFilter' in opts ||
-    'topHolders' in opts
-  );
+  return ENRICH_OPTION_KEYS.some((k) => k in opts);
 }

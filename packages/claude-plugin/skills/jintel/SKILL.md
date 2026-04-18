@@ -78,6 +78,7 @@ User wants a chart, backtest data, or historical prices:
 - **Resolve names first.** If the user gives a company name without a ticker, call `jintel_search` before any other tool.
 - **Prefer batch tools.** Never call `jintel_quote` or `jintel_enrich` in a loop — use the batch variants.
 - **Request only the fields you need.** `jintel_enrich` accepts a `fields` array; omitting it fetches everything (slower and more expensive).
+- **Filter array sub-graphs aggressively.** News, research, SEC filings, risk signals, options chains, and history series all accept a `filter` argument (date range / limit / sort, plus per-domain dimensions like SEC form types, signal severities, strike ranges, option type). Passing `limit: 5–10` and a `since:` date for news or `types: [FILING_10K, FILING_10Q]` for filings keeps payloads small. Options chains on liquid underliers can exceed 5 000 rows — always pass an options filter in production.
 - **Report data age for non-live fields.** Financials, 13F, short interest are periodic — surface the report date.
 - **Null is not zero.** When a tool returns `null` for a price or metric, say "unavailable" — don't render `0`.
 - **Don't fabricate.** If the tools return empty, say so. Never invent tickers, filings, or matches.

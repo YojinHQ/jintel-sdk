@@ -1,4 +1,13 @@
-import type { ArraySubGraphOptions, EnrichmentField, EnrichOptions, TopHoldersOptions } from './types.js';
+import type {
+  ArraySubGraphOptions,
+  EnrichmentField,
+  EnrichOptions,
+  FilingsFilterOptions,
+  FuturesCurveFilterOptions,
+  OptionsChainFilterOptions,
+  RiskSignalFilterOptions,
+  TopHoldersOptions,
+} from './types.js';
 
 // ── Field Fragments ────────────────────────────────────────────────────────
 
@@ -605,8 +614,8 @@ export const SANCTIONS_SCREEN = `
   }`;
 
 export const GDP = `
-  query Gdp($country: String!, $type: GdpType) {
-    gdp(country: $country, type: $type) {
+  query Gdp($country: String!, $type: GdpType, $filter: ArrayFilterInput) {
+    gdp(country: $country, type: $type, filter: $filter) {
       date
       country
       value
@@ -614,8 +623,8 @@ export const GDP = `
   }`;
 
 export const INFLATION = `
-  query Inflation($country: String!) {
-    inflation(country: $country) {
+  query Inflation($country: String!, $filter: ArrayFilterInput) {
+    inflation(country: $country, filter: $filter) {
       date
       country
       value
@@ -623,8 +632,8 @@ export const INFLATION = `
   }`;
 
 export const INTEREST_RATES = `
-  query InterestRates($country: String!) {
-    interestRates(country: $country) {
+  query InterestRates($country: String!, $filter: ArrayFilterInput) {
+    interestRates(country: $country, filter: $filter) {
       date
       country
       value
@@ -632,8 +641,8 @@ export const INTEREST_RATES = `
   }`;
 
 export const SP500_MULTIPLES = `
-  query SP500Multiples($series: SP500Series!) {
-    sp500Multiples(series: $series) {
+  query SP500Multiples($series: SP500Series!, $filter: ArrayFilterInput) {
+    sp500Multiples(series: $series, filter: $filter) {
       date
       name
       value
@@ -656,8 +665,8 @@ export const PRICE_HISTORY = `
   }`;
 
 export const FAMA_FRENCH_FACTORS = `
-  query FamaFrenchFactors($series: FamaFrenchSeries!, $range: String) {
-    famaFrenchFactors(series: $series, range: $range) {
+  query FamaFrenchFactors($series: FamaFrenchSeries!, $range: String, $filter: ArrayFilterInput) {
+    famaFrenchFactors(series: $series, range: $range, filter: $filter) {
       date
       mktRf
       smb
@@ -669,8 +678,8 @@ export const FAMA_FRENCH_FACTORS = `
   }`;
 
 export const SHORT_INTEREST = `
-  query ShortInterest($ticker: String!) {
-    shortInterest(ticker: $ticker) {
+  query ShortInterest($ticker: String!, $filter: ArrayFilterInput) {
+    shortInterest(ticker: $ticker, filter: $filter) {
       ticker
       reportDate
       shortInterest
@@ -722,32 +731,100 @@ export const MARKET_STATUS = `
 
 // ── Dynamic Query Builder ──────────────────────────────────────────────────
 
-const FIELD_BLOCK_MAP: Record<EnrichmentField, string> = {
-  market: `market {\n    ${MARKET_QUOTE_FIELDS.trim()}\n    ${FUNDAMENTALS_FIELDS.trim()}\n    ${HISTORY_FIELDS.trim()}\n    ${KEY_EVENTS_FIELDS.trim()}\n    ${SHORT_INTEREST_FIELDS.trim()}\n  }`,
-  risk: RISK_FIELDS.trim(),
-  regulatory: REGULATORY_FIELDS.trim(),
-  technicals: TECHNICALS_FIELDS.trim(),
-  derivatives: DERIVATIVES_FIELDS.trim(),
-  news: NEWS_FIELDS.trim(),
-  research: RESEARCH_FIELDS.trim(),
-  sentiment: SENTIMENT_FIELDS.trim(),
-  social: SOCIAL_FIELDS.trim(),
-  predictions: PREDICTIONS_FIELDS.trim(),
-  discussions: DISCUSSIONS_FIELDS.trim(),
-  analyst: ANALYST_FIELDS.trim(),
-  financials: FINANCIALS_FIELDS.trim(),
-  executives: EXECUTIVES_FIELDS.trim(),
-  institutionalHoldings: INSTITUTIONAL_HOLDINGS_FIELDS.trim(),
-  ownership: OWNERSHIP_FIELDS.trim(),
-  topHolders: TOP_HOLDERS_FIELDS.trim(),
-  insiderTrades: INSIDER_TRADES_FIELDS.trim(),
-  earningsPressReleases: EARNINGS_PRESS_RELEASES_FIELDS.trim(),
-  segmentedRevenue: SEGMENTED_REVENUE_FIELDS.trim(),
-  earnings: EARNINGS_FIELDS.trim(),
-  periodicFilings: PERIODIC_FILINGS_FIELDS.trim(),
-};
+/** True when any ArrayFilterInput dimension is set. */
+function hasAnyField(opts: ArraySubGraphOptions | undefined | null): boolean {
+  if (!opts) return false;
+  return opts.since != null || opts.until != null || opts.limit != null || opts.sort != null;
+}
 
-/** Fields that accept the ArrayFilterInput arg. */
+function hasFilingsFilter(f: FilingsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return Array.isArray(f.types) && f.types.length > 0;
+}
+
+function hasRiskSignalFilter(f: RiskSignalFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  if (Array.isArray(f.types) && f.types.length > 0) return true;
+  return Array.isArray(f.severities) && f.severities.length > 0;
+}
+
+function hasFuturesFilter(f: FuturesCurveFilterOptions | undefined): boolean {
+  if (!f) return false;
+  return f.since != null || f.until != null || f.limit != null || f.sort != null;
+}
+
+function hasOptionsFilter(f: OptionsChainFilterOptions | undefined): boolean {
+  if (!f) return false;
+  return (
+    f.since != null ||
+    f.until != null ||
+    f.strikeMin != null ||
+    f.strikeMax != null ||
+    f.optionType != null ||
+    f.minVolume != null ||
+    f.minOpenInterest != null ||
+    f.limit != null ||
+    f.sort != null
+  );
+}
+
+interface BuildFlags {
+  hasFilter: boolean;
+  hasFilingsFilter: boolean;
+  hasRiskSignalFilter: boolean;
+  hasFuturesFilter: boolean;
+  hasOptionsFilter: boolean;
+  hasTopHoldersPagination: boolean;
+}
+
+/** Inline `(filter: $filter)` onto a nested field inside an aggregate block. */
+function withFilterArg(block: string, fieldName: string, varName: string): string {
+  return block.replace(new RegExp(`\\b${fieldName}\\s*{`), `${fieldName}(filter: $${varName}) {`);
+}
+
+/** market sub-graph — three inner fields accept ArrayFilterInput. */
+function marketBlock(hasFilter: boolean): string {
+  const history = hasFilter ? withFilterArg(HISTORY_FIELDS.trim(), 'history', 'filter') : HISTORY_FIELDS.trim();
+  const keyEvents = hasFilter ? withFilterArg(KEY_EVENTS_FIELDS.trim(), 'keyEvents', 'filter') : KEY_EVENTS_FIELDS.trim();
+  const shortInt = hasFilter
+    ? withFilterArg(SHORT_INTEREST_FIELDS.trim(), 'shortInterest', 'filter')
+    : SHORT_INTEREST_FIELDS.trim();
+  return `market {\n    ${MARKET_QUOTE_FIELDS.trim()}\n    ${FUNDAMENTALS_FIELDS.trim()}\n    ${history}\n    ${keyEvents}\n    ${shortInt}\n  }`;
+}
+
+/** regulatory sub-graph — filings accepts FilingsFilterInput. */
+function regulatoryBlock(hasFilings: boolean): string {
+  if (!hasFilings) return REGULATORY_FIELDS.trim();
+  return withFilterArg(REGULATORY_FIELDS.trim(), 'filings', 'filingsFilter');
+}
+
+/** risk sub-graph — signals accepts RiskSignalFilterInput. */
+function riskBlock(hasRiskSignal: boolean): string {
+  if (!hasRiskSignal) return RISK_FIELDS.trim();
+  return withFilterArg(RISK_FIELDS.trim(), 'signals', 'riskSignalFilter');
+}
+
+/** derivatives sub-graph — futures and options each take their own filter input. */
+function derivativesBlock(hasFutures: boolean, hasOptions: boolean): string {
+  let block = DERIVATIVES_FIELDS.trim();
+  if (hasFutures) block = withFilterArg(block, 'futures', 'futuresFilter');
+  if (hasOptions) block = withFilterArg(block, 'options', 'optionsFilter');
+  return block;
+}
+
+/** financials sub-graph — income / balanceSheet / cashFlow each take ArrayFilterInput. */
+function financialsBlock(hasFilter: boolean): string {
+  if (!hasFilter) return FINANCIALS_FIELDS.trim();
+  let block = FINANCIALS_FIELDS.trim();
+  block = withFilterArg(block, 'income', 'filter');
+  block = withFilterArg(block, 'balanceSheet', 'filter');
+  block = withFilterArg(block, 'cashFlow', 'filter');
+  return block;
+}
+
+/** Fields that accept the top-level ArrayFilterInput arg directly on Entity. */
 const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
   'news',
   'research',
@@ -762,7 +839,7 @@ const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
   'periodicFilings',
 ]);
 
-/** Filtered variants of array sub-graph field blocks. */
+/** Filtered variants of array sub-graph field blocks (top-level Entity fields only). */
 const FILTERED_FIELD_BLOCK_MAP: Partial<Record<EnrichmentField, string>> = {
   news: `news(filter: $filter) {\n    title\n    link\n    snippet\n    source\n    date\n    imageUrl\n    sentimentScore\n  }`,
   research: `research(filter: $filter) {\n    title\n    url\n    publishedDate\n    author\n    text\n    score\n  }`,
@@ -786,36 +863,100 @@ const TOP_HOLDERS_PAGINATED_BLOCK = `topHolders(limit: $topHoldersLimit, offset:
     filingDate
   }`;
 
-function buildBlocks(fields: EnrichmentField[], hasFilter: boolean, hasTopHoldersPagination: boolean): string {
-  return fields
-    .filter((f) => f in FIELD_BLOCK_MAP)
-    .map((f) => {
-      if (f === 'topHolders' && hasTopHoldersPagination) return `    ${TOP_HOLDERS_PAGINATED_BLOCK}`;
-      const block = hasFilter && ARRAY_SUBGRAPH_FIELDS.has(f) ? FILTERED_FIELD_BLOCK_MAP[f]! : FIELD_BLOCK_MAP[f];
-      return `    ${block}`;
-    })
-    .join('\n');
+function blockFor(field: EnrichmentField, flags: BuildFlags): string {
+  switch (field) {
+    case 'market':
+      return marketBlock(flags.hasFilter);
+    case 'regulatory':
+      return regulatoryBlock(flags.hasFilingsFilter);
+    case 'risk':
+      return riskBlock(flags.hasRiskSignalFilter);
+    case 'derivatives':
+      return derivativesBlock(flags.hasFuturesFilter, flags.hasOptionsFilter);
+    case 'financials':
+      return financialsBlock(flags.hasFilter);
+    case 'topHolders':
+      return flags.hasTopHoldersPagination ? TOP_HOLDERS_PAGINATED_BLOCK : TOP_HOLDERS_FIELDS.trim();
+    case 'technicals':
+      return TECHNICALS_FIELDS.trim();
+    case 'sentiment':
+      return SENTIMENT_FIELDS.trim();
+    case 'analyst':
+      return ANALYST_FIELDS.trim();
+    case 'executives':
+      return EXECUTIVES_FIELDS.trim();
+    case 'ownership':
+      return OWNERSHIP_FIELDS.trim();
+    default: {
+      const filtered = flags.hasFilter && ARRAY_SUBGRAPH_FIELDS.has(field) ? FILTERED_FIELD_BLOCK_MAP[field] : undefined;
+      if (filtered) return filtered;
+      return DEFAULT_FIELD_BLOCK[field];
+    }
+  }
 }
 
-function extraVarDecls(fields: EnrichmentField[], hasFilter: boolean, hasTopHoldersPagination: boolean): string {
+const DEFAULT_FIELD_BLOCK: Record<EnrichmentField, string> = {
+  market: '',
+  risk: '',
+  regulatory: '',
+  technicals: TECHNICALS_FIELDS.trim(),
+  derivatives: '',
+  news: NEWS_FIELDS.trim(),
+  research: RESEARCH_FIELDS.trim(),
+  sentiment: SENTIMENT_FIELDS.trim(),
+  social: SOCIAL_FIELDS.trim(),
+  predictions: PREDICTIONS_FIELDS.trim(),
+  discussions: DISCUSSIONS_FIELDS.trim(),
+  analyst: ANALYST_FIELDS.trim(),
+  financials: '',
+  executives: EXECUTIVES_FIELDS.trim(),
+  institutionalHoldings: INSTITUTIONAL_HOLDINGS_FIELDS.trim(),
+  ownership: OWNERSHIP_FIELDS.trim(),
+  topHolders: TOP_HOLDERS_FIELDS.trim(),
+  insiderTrades: INSIDER_TRADES_FIELDS.trim(),
+  earningsPressReleases: EARNINGS_PRESS_RELEASES_FIELDS.trim(),
+  segmentedRevenue: SEGMENTED_REVENUE_FIELDS.trim(),
+  earnings: EARNINGS_FIELDS.trim(),
+  periodicFilings: PERIODIC_FILINGS_FIELDS.trim(),
+};
+
+function buildBlocks(fields: EnrichmentField[], flags: BuildFlags): string {
+  return fields.map((f) => `    ${blockFor(f, flags)}`).join('\n');
+}
+
+function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
   let vars = '';
-  if (hasFilter && fields.some((f) => ARRAY_SUBGRAPH_FIELDS.has(f))) {
-    vars += ', $filter: ArrayFilterInput';
-  }
-  if (hasTopHoldersPagination && fields.includes('topHolders')) {
-    vars += ', $topHoldersLimit: Int, $topHoldersOffset: Int';
-  }
+  // Generic ArrayFilterInput is used across many fields — include when any of: top-level array fields, market, financials.
+  const genericFilterApplies =
+    flags.hasFilter &&
+    fields.some((f) => ARRAY_SUBGRAPH_FIELDS.has(f) || f === 'market' || f === 'financials');
+  if (genericFilterApplies) vars += ', $filter: ArrayFilterInput';
+  if (flags.hasFilingsFilter && fields.includes('regulatory')) vars += ', $filingsFilter: FilingsFilterInput';
+  if (flags.hasRiskSignalFilter && fields.includes('risk')) vars += ', $riskSignalFilter: RiskSignalFilterInput';
+  if (flags.hasFuturesFilter && fields.includes('derivatives')) vars += ', $futuresFilter: FuturesCurveFilterInput';
+  if (flags.hasOptionsFilter && fields.includes('derivatives')) vars += ', $optionsFilter: OptionsChainFilterInput';
+  if (flags.hasTopHoldersPagination && fields.includes('topHolders')) vars += ', $topHoldersLimit: Int, $topHoldersOffset: Int';
   return vars;
 }
 
+function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlags {
+  const enriched = isEnrichOptions(options);
+  const filter = enriched ? options.filter : options;
+  const topHolders = enriched ? options.topHolders : undefined;
+  return {
+    hasFilter: hasAnyField(filter),
+    hasFilingsFilter: enriched ? hasFilingsFilter(options.filingsFilter) : false,
+    hasRiskSignalFilter: enriched ? hasRiskSignalFilter(options.riskSignalFilter) : false,
+    hasFuturesFilter: enriched ? hasFuturesFilter(options.futuresFilter) : false,
+    hasOptionsFilter: enriched ? hasOptionsFilter(options.optionsFilter) : false,
+    hasTopHoldersPagination: topHolders != null && (topHolders.limit != null || topHolders.offset != null),
+  };
+}
+
 export function buildEnrichQuery(fields: EnrichmentField[], options?: EnrichOptions | ArraySubGraphOptions): string {
-  const filter = isEnrichOptions(options) ? options.filter : options;
-  const topHolders = isEnrichOptions(options) ? options.topHolders : undefined;
-  const hasFilter =
-    filter != null && (filter.since != null || filter.until != null || filter.limit != null || filter.sort != null);
-  const hasTopHoldersPagination = topHolders != null && (topHolders.limit != null || topHolders.offset != null);
-  const vars = extraVarDecls(fields, hasFilter, hasTopHoldersPagination);
-  const blocks = buildBlocks(fields, hasFilter, hasTopHoldersPagination);
+  const flags = computeFlags(options);
+  const vars = extraVarDecls(fields, flags);
+  const blocks = buildBlocks(fields, flags);
 
   return `
   query EnrichEntity($id: ID!${vars}) {
@@ -835,13 +976,9 @@ export function buildBatchEnrichQuery(
   fields: EnrichmentField[],
   options?: EnrichOptions | ArraySubGraphOptions,
 ): string {
-  const filter = isEnrichOptions(options) ? options.filter : options;
-  const topHolders = isEnrichOptions(options) ? options.topHolders : undefined;
-  const hasFilter =
-    filter != null && (filter.since != null || filter.until != null || filter.limit != null || filter.sort != null);
-  const hasTopHoldersPagination = topHolders != null && (topHolders.limit != null || topHolders.offset != null);
-  const vars = extraVarDecls(fields, hasFilter, hasTopHoldersPagination);
-  const blocks = buildBlocks(fields, hasFilter, hasTopHoldersPagination);
+  const flags = computeFlags(options);
+  const vars = extraVarDecls(fields, flags);
+  const blocks = buildBlocks(fields, flags);
 
   return `
   query BatchEnrich($tickers: [String!]!${vars}) {
@@ -859,5 +996,12 @@ ${blocks}
 
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {
   if (!opts || typeof opts !== 'object') return false;
-  return 'filter' in opts || 'topHolders' in opts;
+  return (
+    'filter' in opts ||
+    'filingsFilter' in opts ||
+    'riskSignalFilter' in opts ||
+    'futuresFilter' in opts ||
+    'optionsFilter' in opts ||
+    'topHolders' in opts
+  );
 }

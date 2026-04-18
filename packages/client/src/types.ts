@@ -14,6 +14,19 @@ export type RiskSignalType = z.infer<typeof RiskSignalTypeSchema>;
 export const FilingTypeSchema = z.enum(['FILING_10K', 'FILING_10Q', 'FILING_8K', 'ANNUAL_REPORT', 'OTHER']);
 export type FilingType = z.infer<typeof FilingTypeSchema>;
 
+export const OptionTypeSchema = z.enum(['CALL', 'PUT']);
+export type OptionType = z.infer<typeof OptionTypeSchema>;
+
+export const OptionsChainSortSchema = z.enum([
+  'EXPIRATION_ASC',
+  'EXPIRATION_DESC',
+  'STRIKE_ASC',
+  'STRIKE_DESC',
+  'VOLUME_DESC',
+  'OPEN_INTEREST_DESC',
+]);
+export type OptionsChainSort = z.infer<typeof OptionsChainSortSchema>;
+
 // ── Data Schemas ───────────────────────────────────────────────────────────
 
 export const MarketQuoteSchema = z.object({
@@ -924,7 +937,7 @@ export type EnrichmentField =
   | 'earnings'
   | 'periodicFilings';
 
-/** Options for array sub-graph filtering (news, research). */
+/** Options for array sub-graph filtering (news, research, etc — anything taking ArrayFilterInput). */
 export interface ArraySubGraphOptions {
   /** Only return items published on or after this ISO 8601 timestamp (inclusive). */
   since?: string;
@@ -936,6 +949,54 @@ export interface ArraySubGraphOptions {
   sort?: 'ASC' | 'DESC';
 }
 
+/** Filter for `regulatory.filings` (FilingsFilterInput). */
+export interface FilingsFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to specific form types (e.g. `['FILING_10K', 'FILING_10Q']`). */
+  types?: FilingType[];
+}
+
+/** Filter for `risk.signals` (RiskSignalFilterInput). */
+export interface RiskSignalFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to specific signal types (e.g. `['SANCTIONS', 'LITIGATION']`). */
+  types?: RiskSignalType[];
+  /** Restrict to specific severities (e.g. `['HIGH', 'CRITICAL']`). */
+  severities?: Severity[];
+}
+
+/** Filter for `derivatives.futures` (FuturesCurveFilterInput). Default sort is ASC (nearest first). */
+export interface FuturesCurveFilterOptions {
+  /** Only expirations on/after this ISO 8601 timestamp. */
+  since?: string;
+  /** Only expirations on/before this ISO 8601 timestamp. */
+  until?: string;
+  /** Cap the result count (default 50). */
+  limit?: number;
+  /** Sort direction by expiration. Default ASC (nearest first). */
+  sort?: 'ASC' | 'DESC';
+}
+
+/** Filter for `derivatives.options` (OptionsChainFilterInput). Default sort is EXPIRATION_ASC. */
+export interface OptionsChainFilterOptions {
+  /** Only expirations on/after this ISO 8601 timestamp. */
+  since?: string;
+  /** Only expirations on/before this ISO 8601 timestamp. */
+  until?: string;
+  /** Minimum strike price (inclusive). */
+  strikeMin?: number;
+  /** Maximum strike price (inclusive). */
+  strikeMax?: number;
+  /** Restrict to CALL or PUT. */
+  optionType?: OptionType;
+  /** Drop contracts with volume below this threshold. */
+  minVolume?: number;
+  /** Drop contracts with open interest below this threshold. */
+  minOpenInterest?: number;
+  /** Cap the result count (default 100). */
+  limit?: number;
+  /** Sort order. Default EXPIRATION_ASC. */
+  sort?: OptionsChainSort;
+}
+
 /** Pagination options for topHolders sub-graph. */
 export interface TopHoldersOptions {
   /** Max holders to return (default 20). */
@@ -944,10 +1005,28 @@ export interface TopHoldersOptions {
   offset?: number;
 }
 
-/** Combined options for enrich/batchEnrich — filter for array sub-graphs and pagination for topHolders. */
+/**
+ * Combined options for enrich/batchEnrich.
+ *
+ * `filter` is the generic `ArrayFilterInput` applied to news, research, predictions,
+ * discussions, social, insiderTrades, earnings, earningsPressReleases, periodicFilings,
+ * segmentedRevenue, institutionalHoldings, financials.*, market.history, market.keyEvents,
+ * and market.shortInterest.
+ *
+ * Domain-specific filters override the generic one for their target field and expose
+ * extra dimensions the generic filter can't (form types, severities, strike ranges, etc).
+ */
 export interface EnrichOptions {
-  /** Filter for array sub-graphs (news, research, etc). */
+  /** Generic date/limit/sort filter applied to all array sub-graphs that accept ArrayFilterInput. */
   filter?: ArraySubGraphOptions;
+  /** Filter for `regulatory.filings`. */
+  filingsFilter?: FilingsFilterOptions;
+  /** Filter for `risk.signals`. */
+  riskSignalFilter?: RiskSignalFilterOptions;
+  /** Filter for `derivatives.futures`. */
+  futuresFilter?: FuturesCurveFilterOptions;
+  /** Filter for `derivatives.options`. Recommended in production — chains can exceed 5 000 rows. */
+  optionsFilter?: OptionsChainFilterOptions;
   /** Pagination for topHolders sub-graph. */
   topHolders?: TopHoldersOptions;
 }

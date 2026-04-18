@@ -15,6 +15,8 @@ export {
   SeveritySchema,
   RiskSignalTypeSchema,
   FilingTypeSchema,
+  OptionTypeSchema,
+  OptionsChainSortSchema,
   GdpTypeSchema,
   SP500SeriesSchema,
   // Data schemas
@@ -96,6 +98,8 @@ export type {
   Severity,
   RiskSignalType,
   FilingType,
+  OptionType,
+  OptionsChainSort,
   GdpType,
   SP500Series,
   MarketQuote,
@@ -153,6 +157,10 @@ export type {
   RequestOptions,
   EnrichmentField,
   ArraySubGraphOptions,
+  FilingsFilterOptions,
+  RiskSignalFilterOptions,
+  FuturesCurveFilterOptions,
+  OptionsChainFilterOptions,
   TopHoldersOptions,
   EnrichOptions,
 } from './types.js';

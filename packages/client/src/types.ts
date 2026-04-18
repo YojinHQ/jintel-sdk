@@ -27,6 +27,15 @@ export const OptionsChainSortSchema = z.enum([
 ]);
 export type OptionsChainSort = z.infer<typeof OptionsChainSortSchema>;
 
+export const ExecutiveSortSchema = z.enum(['PAY_DESC', 'PAY_ASC', 'NAME_ASC', 'NAME_DESC']);
+export type ExecutiveSort = z.infer<typeof ExecutiveSortSchema>;
+
+export const AcquisitionDirectionSchema = z.enum(['ACQUIRED', 'DISPOSED']);
+export type AcquisitionDirection = z.infer<typeof AcquisitionDirectionSchema>;
+
+export const SegmentDimensionSchema = z.enum(['PRODUCT', 'SEGMENT', 'GEOGRAPHY']);
+export type SegmentDimension = z.infer<typeof SegmentDimensionSchema>;
+
 // ── Data Schemas ───────────────────────────────────────────────────────────
 
 export const MarketQuoteSchema = z.object({
@@ -997,10 +1006,106 @@ export interface OptionsChainFilterOptions {
   sort?: OptionsChainSort;
 }
 
-/** Pagination options for topHolders sub-graph. */
-export interface TopHoldersOptions {
-  /** Max holders to return (default 20). */
+/** Filter for `Entity.news` (NewsFilterInput). */
+export interface NewsFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to one or more source names (case-insensitive exact match, e.g. `['finnhub', 'CNBC']`). */
+  sources?: string[];
+  /** Only include articles with sentimentScore >= this value (-1 to +1). */
+  minSentiment?: number;
+  /** Only include articles with sentimentScore <= this value (-1 to +1). */
+  maxSentiment?: number;
+}
+
+/** Filter for `Entity.executives` (ExecutivesFilterInput). */
+export interface ExecutivesFilterOptions {
+  /** Only return executives with annual pay >= this amount (USD). Null pay values are excluded when set. */
+  minPay?: number;
+  /** Cap the result count (default 20). */
   limit?: number;
+  /** Sort order (default PAY_DESC). */
+  sortBy?: ExecutiveSort;
+}
+
+/** Filter for `Entity.insiderTrades` (InsiderTradeFilterInput). */
+export interface InsiderTradeFilterOptions extends ArraySubGraphOptions {
+  /** Only include transactions by officers. */
+  isOfficer?: boolean;
+  /** Only include transactions by directors. */
+  isDirector?: boolean;
+  /** Only include transactions by 10% owners. */
+  isTenPercentOwner?: boolean;
+  /** Only include transactions made under a Rule 10b5-1 trading plan. */
+  onlyUnder10b5One?: boolean;
+  /** Restrict to one or more Form 4 transaction codes (P, S, A, F, M, G, J, D). */
+  transactionCodes?: string[];
+  /** Restrict to acquisitions (A) or disposals (D). */
+  acquiredDisposed?: AcquisitionDirection;
+  /** Only include transactions with transactionValue >= this amount (USD). */
+  minValue?: number;
+}
+
+/** Filter for `Entity.earnings` (EarningsFilterInput). */
+export interface EarningsFilterOptions extends ArraySubGraphOptions {
+  /** Only include periods that have been reported (epsActual is not null). */
+  onlyReported?: boolean;
+  /** Only include forward-looking periods that have not yet been reported. */
+  onlyUpcoming?: boolean;
+  /** Only include reported periods with absolute EPS surprise >= this percent. */
+  minSurprisePercent?: number;
+  /** Restrict to a fiscal year. */
+  year?: number;
+}
+
+/** Filter for `Entity.segmentedRevenue` (SegmentRevenueFilterInput). */
+export interface SegmentRevenueFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to one or more breakdown dimensions. */
+  dimensions?: SegmentDimension[];
+  /** Only include rows with value >= this amount (USD). */
+  minValue?: number;
+}
+
+/** Filter for `FinancialStatements.income/balanceSheet/cashFlow` (FinancialStatementFilterInput). */
+export interface FinancialStatementFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to period-type codes as reported upstream (e.g. `['12M']` for annual only, `['3M']` for quarterly only). */
+  periodTypes?: string[];
+}
+
+/** Filter for OFAC sanctions matches (`RegulatoryData.sanctions` and root `sanctionsScreen`). */
+export interface SanctionsFilterOptions {
+  /** Only return matches with score >= this value (0-100). */
+  minScore?: number;
+  /** Restrict to one or more SDN list names (e.g. `['SDN']`). */
+  listNames?: string[];
+  /** Restrict to matches attached to any of these sanctions programs (e.g. `['SDGT', 'IRAN']`). */
+  programs?: string[];
+  /** Cap the result count (default 20). */
+  limit?: number;
+  /** Sort direction by score (default DESC — best match first). */
+  sort?: 'ASC' | 'DESC';
+}
+
+/** Filter for PAC committees (`RegulatoryData.campaignFinance` and root `campaignFinance`). */
+export interface CampaignFinanceFilterOptions {
+  /** Election cycle year (e.g. 2024). Omit for all cycles. */
+  cycle?: number;
+  /** Restrict to a party (e.g. 'REP', 'DEM'). */
+  party?: string;
+  /** Restrict to a 2-letter US state (e.g. 'CA'). */
+  state?: string;
+  /** Restrict to an FEC committee type code (e.g. 'Q' for PAC). */
+  committeeType?: string;
+  /** Only return committees with total raised >= this value (USD). */
+  minRaised?: number;
+  /** Cap the result count (default 20). */
+  limit?: number;
+  /** Sort direction by totalRaised (default DESC). */
+  sort?: 'ASC' | 'DESC';
+}
+
+/** Filter for `Entity.topHolders` (TopHoldersFilterInput). Replaces the old positional `(limit, offset)` args. */
+export interface TopHoldersFilterOptions extends ArraySubGraphOptions {
+  /** Only include holders with position value >= this amount (thousands of USD). */
+  minValue?: number;
   /** Number of holders to skip for pagination (default 0). */
   offset?: number;
 }
@@ -1008,16 +1113,18 @@ export interface TopHoldersOptions {
 /**
  * Combined options for enrich/batchEnrich.
  *
- * `filter` is the generic `ArrayFilterInput` applied to news, research, predictions,
- * discussions, social, insiderTrades, earnings, earningsPressReleases, periodicFilings,
- * segmentedRevenue, institutionalHoldings, financials.*, market.history, market.keyEvents,
- * and market.shortInterest.
+ * `filter` is the generic `ArrayFilterInput`. It applies only to sub-graphs that still
+ * accept ArrayFilterInput: `research`, `predictions`, `discussions`, `social.reddit`,
+ * `social.redditComments`, `earningsPressReleases`, `periodicFilings`, `institutionalHoldings`,
+ * `market.history`, `market.keyEvents`, `market.shortInterest`.
  *
- * Domain-specific filters override the generic one for their target field and expose
- * extra dimensions the generic filter can't (form types, severities, strike ranges, etc).
+ * Domain-specific filters target one sub-graph each and expose extra dimensions
+ * (severities, strike ranges, transaction codes, etc). Use the per-field filter
+ * for `news`, `executives`, `insiderTrades`, `earnings`, `segmentedRevenue`,
+ * `topHolders`, `financials.*`, `regulatory.sanctions`, `regulatory.campaignFinance`.
  */
 export interface EnrichOptions {
-  /** Generic date/limit/sort filter applied to all array sub-graphs that accept ArrayFilterInput. */
+  /** Generic date/limit/sort filter for sub-graphs that still accept ArrayFilterInput. */
   filter?: ArraySubGraphOptions;
   /** Filter for `regulatory.filings`. */
   filingsFilter?: FilingsFilterOptions;
@@ -1027,8 +1134,24 @@ export interface EnrichOptions {
   futuresFilter?: FuturesCurveFilterOptions;
   /** Filter for `derivatives.options`. Recommended in production — chains can exceed 5 000 rows. */
   optionsFilter?: OptionsChainFilterOptions;
-  /** Pagination for topHolders sub-graph. */
-  topHolders?: TopHoldersOptions;
+  /** Filter for `Entity.news`. */
+  newsFilter?: NewsFilterOptions;
+  /** Filter for `Entity.executives`. */
+  executivesFilter?: ExecutivesFilterOptions;
+  /** Filter for `Entity.insiderTrades`. */
+  insiderTradesFilter?: InsiderTradeFilterOptions;
+  /** Filter for `Entity.earnings`. */
+  earningsFilter?: EarningsFilterOptions;
+  /** Filter for `Entity.segmentedRevenue`. */
+  segmentedRevenueFilter?: SegmentRevenueFilterOptions;
+  /** Filter + pagination for `Entity.topHolders`. */
+  topHoldersFilter?: TopHoldersFilterOptions;
+  /** Filter for `financials.income/balanceSheet/cashFlow`. */
+  financialStatementsFilter?: FinancialStatementFilterOptions;
+  /** Filter for `regulatory.sanctions`. */
+  sanctionsFilter?: SanctionsFilterOptions;
+  /** Filter for `regulatory.campaignFinance`. */
+  campaignFinanceFilter?: CampaignFinanceFilterOptions;
 }
 
 export const ALL_ENRICHMENT_FIELDS: EnrichmentField[] = [

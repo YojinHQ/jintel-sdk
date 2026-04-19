@@ -7,14 +7,17 @@ export const INSTITUTIONAL_HOLDINGS_HELP = `Usage: jintel institutional-holdings
 Fetch SEC Form 13F holdings for a filer by CIK.
 
 Flags:
-  --since <iso>     Only holdings reported on/after this ISO 8601 date
-  --until <iso>     Only holdings reported on/before this ISO 8601 date
-  --limit <n>       Max rows
-  --sort <ASC|DESC> Sort direction (default DESC)
-  --json            Output JSON instead of a table
-  --api-key <key>   Override API key
-  --base-url <url>  Override API base URL
-  --help            Show this message
+  --since <iso>      Only holdings reported on/after this ISO 8601 date
+  --until <iso>      Only holdings reported on/before this ISO 8601 date
+  --limit <n>        Max rows (default 20)
+  --offset <n>       Skip N rows for pagination (default 0)
+  --sort <ASC|DESC>  Sort direction (default DESC)
+  --min-value <n>    Only holdings with value >= N (thousands of USD)
+  --cusip <cusip>    Only holdings matching this CUSIP
+  --json             Output JSON instead of a table
+  --api-key <key>    Override API key
+  --base-url <url>   Override API base URL
+  --help             Show this message
 `;
 
 export async function runInstitutionalHoldings(opts: CommandOptions): Promise<ExitCode> {
@@ -31,6 +34,9 @@ export async function runInstitutionalHoldings(opts: CommandOptions): Promise<Ex
   const since = getString(opts.args.flags, 'since');
   const until = getString(opts.args.flags, 'until');
   const limit = getNumber(opts.args.flags, 'limit');
+  const offset = getNumber(opts.args.flags, 'offset');
+  const minValue = getNumber(opts.args.flags, 'min-value');
+  const cusip = getString(opts.args.flags, 'cusip');
   const sortRaw = getString(opts.args.flags, 'sort');
   let sort: 'ASC' | 'DESC' | undefined;
   if (sortRaw) {
@@ -41,10 +47,21 @@ export async function runInstitutionalHoldings(opts: CommandOptions): Promise<Ex
     sort = upper;
   }
 
-  const filter: { since?: string; until?: string; limit?: number; sort?: 'ASC' | 'DESC' } = {};
+  const filter: {
+    since?: string;
+    until?: string;
+    limit?: number;
+    offset?: number;
+    sort?: 'ASC' | 'DESC';
+    minValue?: number;
+    cusip?: string;
+  } = {};
   if (since) filter.since = since;
   if (until) filter.until = until;
   if (limit !== undefined) filter.limit = limit;
+  if (offset !== undefined) filter.offset = offset;
+  if (minValue !== undefined) filter.minValue = minValue;
+  if (cusip) filter.cusip = cusip;
   if (sort) filter.sort = sort;
   const hasFilter = Object.keys(filter).length > 0;
 

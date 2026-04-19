@@ -429,11 +429,14 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
             type: 'string',
             description: 'ISO 8601 date — only return filings on or before this date',
           },
-          limit: { type: 'number', description: 'Cap holdings returned' },
+          limit: { type: 'number', description: 'Cap holdings returned (default 20)' },
+          offset: { type: 'number', description: 'Skip N rows for pagination (default 0)' },
+          minValue: { type: 'number', description: 'Only include holdings with value >= N (thousands of USD)' },
+          cusip: { type: 'string', description: 'Only include holdings matching this CUSIP' },
           sort: {
             type: 'string',
             enum: ['ASC', 'DESC'],
-            description: 'Sort direction by filing date (default DESC)',
+            description: 'Sort direction by reportDate (default DESC)',
           },
         },
         required: ['cik'],
@@ -445,12 +448,21 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
           const since = asOptionalString(args.since, 'since');
           const until = asOptionalString(args.until, 'until');
           const limit = asOptionalNumber(args.limit, 'limit');
+          const offset = asOptionalNumber(args.offset, 'offset');
+          const minValue = asOptionalNumber(args.minValue, 'minValue');
+          const cusip = asOptionalString(args.cusip, 'cusip');
           const sortRaw = asOptionalString(args.sort, 'sort');
           const sort: 'ASC' | 'DESC' | undefined =
             sortRaw === 'ASC' || sortRaw === 'DESC' ? sortRaw : undefined;
-          const hasFilter = since != null || until != null || limit != null || sort != null;
-          const filter: { since?: string; until?: string; limit?: number; sort?: 'ASC' | 'DESC' } | undefined =
-            hasFilter ? { since, until, limit, sort } : undefined;
+          const hasFilter =
+            since != null ||
+            until != null ||
+            limit != null ||
+            offset != null ||
+            minValue != null ||
+            cusip != null ||
+            sort != null;
+          const filter = hasFilter ? { since, until, limit, offset, minValue, cusip, sort } : undefined;
           return runTool(() => client.institutionalHoldings(cik, filter));
         } catch (err) {
           return fail(errorMessage(err));

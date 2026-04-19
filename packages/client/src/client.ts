@@ -29,6 +29,7 @@ import type {
   GraphQLError,
   GraphQLResponse,
   InstitutionalHolding,
+  InstitutionalHoldingsFilterOptions,
   JintelClientCacheConfig,
   JintelClientConfig,
   MarketQuote,
@@ -66,6 +67,9 @@ function enrichFilterVariables(options?: EnrichOptions): Record<string, unknown>
   if (options.earningsFilter) vars.earningsFilter = options.earningsFilter;
   if (options.segmentedRevenueFilter) vars.segmentedRevenueFilter = options.segmentedRevenueFilter;
   if (options.topHoldersFilter) vars.topHoldersFilter = options.topHoldersFilter;
+  if (options.institutionalHoldingsFilter) vars.institutionalHoldingsFilter = options.institutionalHoldingsFilter;
+  if (options.predictionsFilter) vars.predictionsFilter = options.predictionsFilter;
+  if (options.discussionsFilter) vars.discussionsFilter = options.discussionsFilter;
   if (options.financialStatementsFilter) vars.financialStatementsFilter = options.financialStatementsFilter;
   if (options.sanctionsFilter) vars.sanctionsFilter = options.sanctionsFilter;
   if (options.campaignFinanceFilter) vars.campaignFinanceFilter = options.campaignFinanceFilter;
@@ -604,11 +608,11 @@ export class JintelClient {
   /**
    * Institutional 13F holdings for a filer by CIK.
    * Returns the latest 13F-HR filing's portfolio.
-   * Accepts ArrayFilterInput for since/until/limit/sort pagination.
+   * Accepts InstitutionalHoldingsFilterInput for minValue/cusip/offset/date/limit/sort.
    */
   async institutionalHoldings(
     cik: string,
-    filter?: ArraySubGraphOptions,
+    filter?: InstitutionalHoldingsFilterOptions,
   ): Promise<JintelResult<InstitutionalHolding[]>> {
     try {
       const variables: Record<string, unknown> = { cik };

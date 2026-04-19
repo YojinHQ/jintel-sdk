@@ -1110,18 +1110,51 @@ export interface TopHoldersFilterOptions extends ArraySubGraphOptions {
   offset?: number;
 }
 
+/** Filter for `Entity.institutionalHoldings` and root `institutionalHoldings` (InstitutionalHoldingsFilterInput). */
+export interface InstitutionalHoldingsFilterOptions extends ArraySubGraphOptions {
+  /** Only include holdings with value >= this amount (thousands of USD). */
+  minValue?: number;
+  /** Only include holdings matching this CUSIP. */
+  cusip?: string;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
+/** Filter for `Entity.predictions` (PredictionMarketFilterInput). */
+export interface PredictionMarketFilterOptions extends ArraySubGraphOptions {
+  /** Only include events with 24-hour volume >= this amount. */
+  minVolume24hr?: number;
+  /** Only include events with liquidity >= this amount. */
+  minLiquidity?: number;
+  /** Only include events that still have unresolved outcomes. */
+  onlyOpen?: boolean;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
+/** Filter for `Entity.discussions` (DiscussionsFilterInput). */
+export interface DiscussionsFilterOptions extends ArraySubGraphOptions {
+  /** Only include stories with points >= this value. */
+  minPoints?: number;
+  /** Only include stories with comment count >= this value. */
+  minComments?: number;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
 /**
  * Combined options for enrich/batchEnrich.
  *
  * `filter` is the generic `ArrayFilterInput`. It applies only to sub-graphs that still
- * accept ArrayFilterInput: `research`, `predictions`, `discussions`, `social.reddit`,
- * `social.redditComments`, `earningsPressReleases`, `periodicFilings`, `institutionalHoldings`,
- * `market.history`, `market.keyEvents`, `market.shortInterest`.
+ * accept ArrayFilterInput: `research`, `social.reddit`, `social.redditComments`,
+ * `earningsPressReleases`, `periodicFilings`, `market.history`, `market.keyEvents`,
+ * `market.shortInterest`.
  *
  * Domain-specific filters target one sub-graph each and expose extra dimensions
  * (severities, strike ranges, transaction codes, etc). Use the per-field filter
  * for `news`, `executives`, `insiderTrades`, `earnings`, `segmentedRevenue`,
- * `topHolders`, `financials.*`, `regulatory.sanctions`, `regulatory.campaignFinance`.
+ * `topHolders`, `institutionalHoldings`, `predictions`, `discussions`,
+ * `financials.*`, `regulatory.sanctions`, `regulatory.campaignFinance`.
  */
 export interface EnrichOptions {
   /** Generic date/limit/sort filter for sub-graphs that still accept ArrayFilterInput. */
@@ -1146,6 +1179,12 @@ export interface EnrichOptions {
   segmentedRevenueFilter?: SegmentRevenueFilterOptions;
   /** Filter + pagination for `Entity.topHolders`. */
   topHoldersFilter?: TopHoldersFilterOptions;
+  /** Filter + pagination for `Entity.institutionalHoldings`. */
+  institutionalHoldingsFilter?: InstitutionalHoldingsFilterOptions;
+  /** Filter for `Entity.predictions`. */
+  predictionsFilter?: PredictionMarketFilterOptions;
+  /** Filter for `Entity.discussions`. */
+  discussionsFilter?: DiscussionsFilterOptions;
   /** Filter for `financials.income/balanceSheet/cashFlow`. */
   financialStatementsFilter?: FinancialStatementFilterOptions;
   /** Filter for `regulatory.sanctions`. */

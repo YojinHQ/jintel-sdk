@@ -1,6 +1,7 @@
 import type {
   ArraySubGraphOptions,
   CampaignFinanceFilterOptions,
+  DiscussionsFilterOptions,
   EarningsFilterOptions,
   EnrichmentField,
   EnrichOptions,
@@ -9,8 +10,10 @@ import type {
   FinancialStatementFilterOptions,
   FuturesCurveFilterOptions,
   InsiderTradeFilterOptions,
+  InstitutionalHoldingsFilterOptions,
   NewsFilterOptions,
   OptionsChainFilterOptions,
+  PredictionMarketFilterOptions,
   RiskSignalFilterOptions,
   SanctionsFilterOptions,
   SegmentRevenueFilterOptions,
@@ -712,7 +715,7 @@ export const CAMPAIGN_FINANCE = `
   }`;
 
 export const INSTITUTIONAL_HOLDINGS = `
-  query InstitutionalHoldings($cik: String!, $filter: ArrayFilterInput) {
+  query InstitutionalHoldings($cik: String!, $filter: InstitutionalHoldingsFilterInput) {
     institutionalHoldings(cik: $cik, filter: $filter) {
       issuerName
       cusip
@@ -828,6 +831,29 @@ function hasTopHoldersFilter(f: TopHoldersFilterOptions | undefined): boolean {
   return f.minValue != null || f.offset != null;
 }
 
+function hasInstitutionalHoldingsFilter(f: InstitutionalHoldingsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return f.minValue != null || f.cusip != null || f.offset != null;
+}
+
+function hasPredictionsFilter(f: PredictionMarketFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return (
+    f.minVolume24hr != null ||
+    f.minLiquidity != null ||
+    f.onlyOpen != null ||
+    f.offset != null
+  );
+}
+
+function hasDiscussionsFilter(f: DiscussionsFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return f.minPoints != null || f.minComments != null || f.offset != null;
+}
+
 function hasFinancialStatementsFilter(f: FinancialStatementFilterOptions | undefined): boolean {
   if (!f) return false;
   if (hasAnyField(f)) return true;
@@ -866,6 +892,9 @@ interface BuildFlags {
   hasEarningsFilter: boolean;
   hasSegmentRevenueFilter: boolean;
   hasTopHoldersFilter: boolean;
+  hasInstitutionalHoldingsFilter: boolean;
+  hasPredictionsFilter: boolean;
+  hasDiscussionsFilter: boolean;
   hasFinancialStatementsFilter: boolean;
   hasSanctionsFilter: boolean;
   hasCampaignFinanceFilter: boolean;
@@ -923,9 +952,6 @@ function financialsBlock(hasStatementsFilter: boolean): string {
 const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
   'research',
   'social',
-  'predictions',
-  'discussions',
-  'institutionalHoldings',
   'earningsPressReleases',
   'periodicFilings',
 ]);
@@ -934,9 +960,6 @@ const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
 const FILTERED_FIELD_BLOCK_MAP: Partial<Record<EnrichmentField, string>> = {
   research: `research(filter: $filter) {\n    title\n    url\n    publishedDate\n    author\n    text\n    score\n  }`,
   social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n  }`,
-  predictions: `predictions(filter: $filter) {\n    eventId\n    title\n    url\n    outcomes { name probability }\n    outcomesRemaining\n    priceMovement\n    volume24hr\n    volume1mo\n    liquidity\n    date\n    endDate\n  }`,
-  discussions: `discussions(filter: $filter) {\n    objectId\n    title\n    url\n    hnUrl\n    author\n    date\n    points\n    numComments\n    topComments { author text points }\n  }`,
-  institutionalHoldings: `institutionalHoldings(filter: $filter) {\n    issuerName\n    cusip\n    titleOfClass\n    value\n    shares\n    sharesOrPrincipal\n    investmentDiscretion\n    reportDate\n    filingDate\n  }`,
   earningsPressReleases: `earningsPressReleases(filter: $filter) {\n    accessionNumber\n    filingDate\n    reportDate\n    items\n    filingUrl\n    pressReleaseUrl\n    body\n    excerpt\n    bodyLength\n    guidance { text metric period direction }\n  }`,
   periodicFilings: `periodicFilings(filter: $filter) {\n    accessionNumber\n    form\n    filingDate\n    reportDate\n    filingUrl\n    documentUrl\n    sections {\n      item\n      title\n      body\n      excerpt\n      bodyLength\n    }\n  }`,
 };
@@ -951,6 +974,11 @@ const INSIDER_TRADES_INNER = INSIDER_TRADES_FIELDS.trim().replace(/^insiderTrade
 const EARNINGS_INNER = EARNINGS_FIELDS.trim().replace(/^earnings\s*\{\s*|\s*\}$/g, '').trim();
 const SEGMENTED_REVENUE_INNER = SEGMENTED_REVENUE_FIELDS.trim().replace(/^segmentedRevenue\s*\{\s*|\s*\}$/g, '').trim();
 const TOP_HOLDERS_INNER = TOP_HOLDERS_FIELDS.trim().replace(/^topHolders\s*\{\s*|\s*\}$/g, '').trim();
+const INSTITUTIONAL_HOLDINGS_INNER = INSTITUTIONAL_HOLDINGS_FIELDS.trim()
+  .replace(/^institutionalHoldings\s*\{\s*|\s*\}$/g, '')
+  .trim();
+const PREDICTIONS_INNER = PREDICTIONS_FIELDS.trim().replace(/^predictions\s*\{\s*|\s*\}$/g, '').trim();
+const DISCUSSIONS_INNER = DISCUSSIONS_FIELDS.trim().replace(/^discussions\s*\{\s*|\s*\}$/g, '').trim();
 
 function blockFor(field: EnrichmentField, flags: BuildFlags): string {
   switch (field) {
@@ -986,6 +1014,18 @@ function blockFor(field: EnrichmentField, flags: BuildFlags): string {
       return flags.hasTopHoldersFilter
         ? filteredBlock('topHolders', 'topHoldersFilter', TOP_HOLDERS_INNER)
         : TOP_HOLDERS_FIELDS.trim();
+    case 'institutionalHoldings':
+      return flags.hasInstitutionalHoldingsFilter
+        ? filteredBlock('institutionalHoldings', 'institutionalHoldingsFilter', INSTITUTIONAL_HOLDINGS_INNER)
+        : INSTITUTIONAL_HOLDINGS_FIELDS.trim();
+    case 'predictions':
+      return flags.hasPredictionsFilter
+        ? filteredBlock('predictions', 'predictionsFilter', PREDICTIONS_INNER)
+        : PREDICTIONS_FIELDS.trim();
+    case 'discussions':
+      return flags.hasDiscussionsFilter
+        ? filteredBlock('discussions', 'discussionsFilter', DISCUSSIONS_INNER)
+        : DISCUSSIONS_FIELDS.trim();
     case 'technicals':
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
@@ -1053,6 +1093,12 @@ function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
     vars += ', $segmentedRevenueFilter: SegmentRevenueFilterInput';
   if (flags.hasTopHoldersFilter && fields.includes('topHolders'))
     vars += ', $topHoldersFilter: TopHoldersFilterInput';
+  if (flags.hasInstitutionalHoldingsFilter && fields.includes('institutionalHoldings'))
+    vars += ', $institutionalHoldingsFilter: InstitutionalHoldingsFilterInput';
+  if (flags.hasPredictionsFilter && fields.includes('predictions'))
+    vars += ', $predictionsFilter: PredictionMarketFilterInput';
+  if (flags.hasDiscussionsFilter && fields.includes('discussions'))
+    vars += ', $discussionsFilter: DiscussionsFilterInput';
   if (flags.hasFinancialStatementsFilter && fields.includes('financials'))
     vars += ', $financialStatementsFilter: FinancialStatementFilterInput';
   return vars;
@@ -1073,6 +1119,11 @@ function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlag
     hasEarningsFilter: enriched ? hasEarningsFilter(options.earningsFilter) : false,
     hasSegmentRevenueFilter: enriched ? hasSegmentRevenueFilter(options.segmentedRevenueFilter) : false,
     hasTopHoldersFilter: enriched ? hasTopHoldersFilter(options.topHoldersFilter) : false,
+    hasInstitutionalHoldingsFilter: enriched
+      ? hasInstitutionalHoldingsFilter(options.institutionalHoldingsFilter)
+      : false,
+    hasPredictionsFilter: enriched ? hasPredictionsFilter(options.predictionsFilter) : false,
+    hasDiscussionsFilter: enriched ? hasDiscussionsFilter(options.discussionsFilter) : false,
     hasFinancialStatementsFilter: enriched ? hasFinancialStatementsFilter(options.financialStatementsFilter) : false,
     hasSanctionsFilter: enriched ? hasSanctionsFilter(options.sanctionsFilter) : false,
     hasCampaignFinanceFilter: enriched ? hasCampaignFinanceFilter(options.campaignFinanceFilter) : false,
@@ -1132,6 +1183,9 @@ const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
   'earningsFilter',
   'segmentedRevenueFilter',
   'topHoldersFilter',
+  'institutionalHoldingsFilter',
+  'predictionsFilter',
+  'discussionsFilter',
   'financialStatementsFilter',
   'sanctionsFilter',
   'campaignFinanceFilter',

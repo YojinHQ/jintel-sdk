@@ -180,4 +180,10 @@ describe('buildBatchEnrichQuery', () => {
     expect(query).toContain('$relationshipsFilter: RelationshipFilterInput');
     expect(query).toContain('relationships(filter: $relationshipsFilter)');
   });
+
+  it('relationships block requests firstSeenAt / lastConfirmedAt (P1.b)', () => {
+    const query = buildBatchEnrichQuery(['relationships']);
+    expect(query).toContain('firstSeenAt');
+    expect(query).toContain('lastConfirmedAt');
+  });
 });

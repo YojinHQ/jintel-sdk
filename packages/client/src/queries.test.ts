@@ -186,4 +186,17 @@ describe('buildBatchEnrichQuery', () => {
     expect(query).toContain('firstSeenAt');
     expect(query).toContain('lastConfirmedAt');
   });
+
+  it('emits a parent block without filter args', () => {
+    const query = buildBatchEnrichQuery(['parent']);
+    expect(query).toMatch(/parent\s*\{/);
+    expect(query).toContain('name');
+    expect(query).toContain('cik');
+    expect(query).toContain('percentOwned');
+    expect(query).toContain('source {');
+    expect(query).toContain('connector');
+    expect(query).toContain('asOf');
+    expect(query).toContain('ref');
+    expect(query).not.toContain('parent(');
+  });
 });

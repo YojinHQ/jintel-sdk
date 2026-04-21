@@ -1072,6 +1072,30 @@ export const RelationshipEdgeSchema = z.object({
 });
 export type RelationshipEdge = z.infer<typeof RelationshipEdgeSchema>;
 
+export const ParentSourceSchema = z.object({
+  /** Connector that emitted this pointer — 'sec-13d'. */
+  connector: z.string(),
+  /** URL to the Schedule 13D/G filing's EDGAR landing page. */
+  url: z.string().nullable().optional(),
+  /** ISO 8601 'as of' date from the filing. */
+  asOf: z.string().nullable().optional(),
+  /** Accession number of the Schedule 13D/G filing. */
+  ref: z.string().nullable().optional(),
+});
+export type ParentSource = z.infer<typeof ParentSourceSchema>;
+
+export const ParentCompanySchema = z.object({
+  /** Parent display name as reported in the Schedule 13D/G filing. */
+  name: z.string(),
+  /** SEC CIK of the parent (10-digit padded). */
+  cik: z.string(),
+  /** Percent of voting shares owned (0..100). */
+  percentOwned: z.number(),
+  /** Source filing provenance. */
+  source: ParentSourceSchema,
+});
+export type ParentCompany = z.infer<typeof ParentCompanySchema>;
+
 export const FredObservationSchema = z.object({
   /** Observation date (YYYY-MM-DD). */
   date: z.string(),
@@ -1134,6 +1158,7 @@ export const EntitySchema = z.object({
   subsidiaries: SubsidiaryListSchema.nullable().optional(),
   concentration: ConcentrationProfileSchema.nullable().optional(),
   relationships: z.array(RelationshipEdgeSchema).optional(),
+  parent: ParentCompanySchema.nullable().optional(),
 });
 export type Entity = z.infer<typeof EntitySchema>;
 
@@ -1199,7 +1224,8 @@ export type EnrichmentField =
   | 'governmentContracts'
   | 'subsidiaries'
   | 'concentration'
-  | 'relationships';
+  | 'relationships'
+  | 'parent';
 
 /** Options for array sub-graph filtering (news, research, etc — anything taking ArrayFilterInput). */
 export interface ArraySubGraphOptions {
@@ -1553,4 +1579,5 @@ export const ALL_ENRICHMENT_FIELDS: EnrichmentField[] = [
   'subsidiaries',
   'concentration',
   'relationships',
+  'parent',
 ];

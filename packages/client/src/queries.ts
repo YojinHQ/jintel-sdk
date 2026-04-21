@@ -1,16 +1,20 @@
 import type {
   ArraySubGraphOptions,
   CampaignFinanceFilterOptions,
+  ClinicalTrialFilterOptions,
   DiscussionsFilterOptions,
   EarningsFilterOptions,
   EnrichmentField,
   EnrichOptions,
   ExecutivesFilterOptions,
+  FdaEventFilterOptions,
   FilingsFilterOptions,
   FinancialStatementFilterOptions,
   FuturesCurveFilterOptions,
+  GovernmentContractFilterOptions,
   InsiderTradeFilterOptions,
   InstitutionalHoldingsFilterOptions,
+  LitigationFilterOptions,
   NewsFilterOptions,
   OptionsChainFilterOptions,
   PredictionMarketFilterOptions,
@@ -546,6 +550,53 @@ export const KEY_EVENTS_FIELDS = `
     volume
   }`;
 
+export const CLINICAL_TRIALS_FIELDS = `
+  clinicalTrials {
+    nctId
+    title
+    phase
+    status
+    conditions
+    interventions
+    sponsor
+    startDate
+    completionDate
+    enrollment
+  }`;
+
+export const FDA_EVENTS_FIELDS = `
+  fdaEvents {
+    id
+    type
+    reportDate
+    severity
+    summary
+    product
+  }`;
+
+export const LITIGATION_FIELDS = `
+  litigation {
+    id
+    caseName
+    court
+    dateFiled
+    dateTerminated
+    docketNumber
+    natureOfSuit
+    absoluteUrl
+  }`;
+
+export const GOVERNMENT_CONTRACTS_FIELDS = `
+  governmentContracts {
+    awardId
+    recipient
+    actionDate
+    amount
+    agency
+    awardType
+    description
+  }`;
+
 // ── Static Queries ─────────────────────────────────────────────────────────
 
 export const SEARCH_ENTITIES = `
@@ -740,6 +791,36 @@ export const MARKET_STATUS = `
     }
   }`;
 
+export const FRED = `
+  query Fred($seriesId: String!, $filter: ArrayFilterInput) {
+    fred(seriesId: $seriesId) {
+      id
+      title
+      units
+      frequency
+      lastUpdated
+      observations(filter: $filter) {
+        date
+        value
+      }
+    }
+  }`;
+
+export const FRED_BATCH = `
+  query FredBatch($seriesIds: [String!]!, $filter: ArrayFilterInput) {
+    fredBatch(seriesIds: $seriesIds) {
+      id
+      title
+      units
+      frequency
+      lastUpdated
+      observations(filter: $filter) {
+        date
+        value
+      }
+    }
+  }`;
+
 // ── Dynamic Query Builder ──────────────────────────────────────────────────
 
 /** True when any ArrayFilterInput dimension is set. */
@@ -880,6 +961,36 @@ function hasCampaignFinanceFilter(f: CampaignFinanceFilterOptions | undefined): 
   );
 }
 
+function hasClinicalTrialsFilter(f: ClinicalTrialFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return f.phase != null || f.status != null || f.offset != null;
+}
+
+function hasFdaEventsFilter(f: FdaEventFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  if (Array.isArray(f.types) && f.types.length > 0) return true;
+  return f.severity != null || f.offset != null;
+}
+
+function hasLitigationFilter(f: LitigationFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return (
+    f.onlyActive != null ||
+    f.court != null ||
+    f.natureOfSuit != null ||
+    f.offset != null
+  );
+}
+
+function hasGovernmentContractsFilter(f: GovernmentContractFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (hasAnyField(f)) return true;
+  return f.minAmount != null || f.offset != null;
+}
+
 interface BuildFlags {
   hasFilter: boolean;
   hasFilingsFilter: boolean;
@@ -898,6 +1009,10 @@ interface BuildFlags {
   hasFinancialStatementsFilter: boolean;
   hasSanctionsFilter: boolean;
   hasCampaignFinanceFilter: boolean;
+  hasClinicalTrialsFilter: boolean;
+  hasFdaEventsFilter: boolean;
+  hasLitigationFilter: boolean;
+  hasGovernmentContractsFilter: boolean;
 }
 
 /** Inline `(filter: $varName)` onto a nested field inside an aggregate block. */
@@ -979,6 +1094,10 @@ const INSTITUTIONAL_HOLDINGS_INNER = INSTITUTIONAL_HOLDINGS_FIELDS.trim()
   .trim();
 const PREDICTIONS_INNER = PREDICTIONS_FIELDS.trim().replace(/^predictions\s*\{\s*|\s*\}$/g, '').trim();
 const DISCUSSIONS_INNER = DISCUSSIONS_FIELDS.trim().replace(/^discussions\s*\{\s*|\s*\}$/g, '').trim();
+const CLINICAL_TRIALS_INNER = CLINICAL_TRIALS_FIELDS.trim().replace(/^clinicalTrials\s*\{\s*|\s*\}$/g, '').trim();
+const FDA_EVENTS_INNER = FDA_EVENTS_FIELDS.trim().replace(/^fdaEvents\s*\{\s*|\s*\}$/g, '').trim();
+const LITIGATION_INNER = LITIGATION_FIELDS.trim().replace(/^litigation\s*\{\s*|\s*\}$/g, '').trim();
+const GOVERNMENT_CONTRACTS_INNER = GOVERNMENT_CONTRACTS_FIELDS.trim().replace(/^governmentContracts\s*\{\s*|\s*\}$/g, '').trim();
 
 function blockFor(field: EnrichmentField, flags: BuildFlags): string {
   switch (field) {
@@ -1026,6 +1145,22 @@ function blockFor(field: EnrichmentField, flags: BuildFlags): string {
       return flags.hasDiscussionsFilter
         ? filteredBlock('discussions', 'discussionsFilter', DISCUSSIONS_INNER)
         : DISCUSSIONS_FIELDS.trim();
+    case 'clinicalTrials':
+      return flags.hasClinicalTrialsFilter
+        ? filteredBlock('clinicalTrials', 'clinicalTrialsFilter', CLINICAL_TRIALS_INNER)
+        : CLINICAL_TRIALS_FIELDS.trim();
+    case 'fdaEvents':
+      return flags.hasFdaEventsFilter
+        ? filteredBlock('fdaEvents', 'fdaEventsFilter', FDA_EVENTS_INNER)
+        : FDA_EVENTS_FIELDS.trim();
+    case 'litigation':
+      return flags.hasLitigationFilter
+        ? filteredBlock('litigation', 'litigationFilter', LITIGATION_INNER)
+        : LITIGATION_FIELDS.trim();
+    case 'governmentContracts':
+      return flags.hasGovernmentContractsFilter
+        ? filteredBlock('governmentContracts', 'governmentContractsFilter', GOVERNMENT_CONTRACTS_INNER)
+        : GOVERNMENT_CONTRACTS_FIELDS.trim();
     case 'technicals':
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
@@ -1065,6 +1200,10 @@ const DEFAULT_FIELD_BLOCK: Record<EnrichmentField, string> = {
   segmentedRevenue: SEGMENTED_REVENUE_FIELDS.trim(),
   earnings: EARNINGS_FIELDS.trim(),
   periodicFilings: PERIODIC_FILINGS_FIELDS.trim(),
+  clinicalTrials: CLINICAL_TRIALS_FIELDS.trim(),
+  fdaEvents: FDA_EVENTS_FIELDS.trim(),
+  litigation: LITIGATION_FIELDS.trim(),
+  governmentContracts: GOVERNMENT_CONTRACTS_FIELDS.trim(),
 };
 
 function buildBlocks(fields: EnrichmentField[], flags: BuildFlags): string {
@@ -1101,6 +1240,14 @@ function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
     vars += ', $discussionsFilter: DiscussionsFilterInput';
   if (flags.hasFinancialStatementsFilter && fields.includes('financials'))
     vars += ', $financialStatementsFilter: FinancialStatementFilterInput';
+  if (flags.hasClinicalTrialsFilter && fields.includes('clinicalTrials'))
+    vars += ', $clinicalTrialsFilter: ClinicalTrialFilterInput';
+  if (flags.hasFdaEventsFilter && fields.includes('fdaEvents'))
+    vars += ', $fdaEventsFilter: FdaEventFilterInput';
+  if (flags.hasLitigationFilter && fields.includes('litigation'))
+    vars += ', $litigationFilter: LitigationFilterInput';
+  if (flags.hasGovernmentContractsFilter && fields.includes('governmentContracts'))
+    vars += ', $governmentContractsFilter: GovernmentContractFilterInput';
   return vars;
 }
 
@@ -1127,6 +1274,12 @@ function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlag
     hasFinancialStatementsFilter: enriched ? hasFinancialStatementsFilter(options.financialStatementsFilter) : false,
     hasSanctionsFilter: enriched ? hasSanctionsFilter(options.sanctionsFilter) : false,
     hasCampaignFinanceFilter: enriched ? hasCampaignFinanceFilter(options.campaignFinanceFilter) : false,
+    hasClinicalTrialsFilter: enriched ? hasClinicalTrialsFilter(options.clinicalTrialsFilter) : false,
+    hasFdaEventsFilter: enriched ? hasFdaEventsFilter(options.fdaEventsFilter) : false,
+    hasLitigationFilter: enriched ? hasLitigationFilter(options.litigationFilter) : false,
+    hasGovernmentContractsFilter: enriched
+      ? hasGovernmentContractsFilter(options.governmentContractsFilter)
+      : false,
   };
 }
 
@@ -1189,6 +1342,10 @@ const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
   'financialStatementsFilter',
   'sanctionsFilter',
   'campaignFinanceFilter',
+  'clinicalTrialsFilter',
+  'fdaEventsFilter',
+  'litigationFilter',
+  'governmentContractsFilter',
 ];
 
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {

@@ -87,6 +87,14 @@ export {
   InsiderTradeSchema,
   EarningsPressReleaseSchema,
   SegmentRevenueSchema,
+  // Alt data
+  ClinicalTrialSchema,
+  FdaEventTypeSchema,
+  FdaEventSchema,
+  LitigationCaseSchema,
+  GovernmentContractSchema,
+  FredObservationSchema,
+  FredSeriesSchema,
   // Market Status
   MarketSessionSchema,
   USMarketStatusSchema,
@@ -155,6 +163,13 @@ export type {
   InsiderTrade,
   EarningsPressRelease,
   SegmentRevenue,
+  ClinicalTrial,
+  FdaEvent,
+  FdaEventType,
+  LitigationCase,
+  GovernmentContract,
+  FredSeries,
+  FredObservation,
   MarketSession,
   USMarketStatus,
   GraphQLError,
@@ -176,6 +191,10 @@ export type {
   FinancialStatementFilterOptions,
   SanctionsFilterOptions,
   CampaignFinanceFilterOptions,
+  ClinicalTrialFilterOptions,
+  FdaEventFilterOptions,
+  LitigationFilterOptions,
+  GovernmentContractFilterOptions,
   EnrichOptions,
 } from './types.js';
 
@@ -197,6 +216,8 @@ export {
   CAMPAIGN_FINANCE,
   INSTITUTIONAL_HOLDINGS,
   MARKET_STATUS,
+  FRED,
+  FRED_BATCH,
   // Dynamic builders
   buildEnrichQuery,
   buildBatchEnrichQuery,
@@ -226,4 +247,8 @@ export {
   INSIDER_TRADES_FIELDS,
   EARNINGS_PRESS_RELEASES_FIELDS,
   SEGMENTED_REVENUE_FIELDS,
+  CLINICAL_TRIALS_FIELDS,
+  FDA_EVENTS_FIELDS,
+  LITIGATION_FIELDS,
+  GOVERNMENT_CONTRACTS_FIELDS,
 } from './queries.js';

@@ -117,6 +117,10 @@ await jintel.sanctionsScreen('Gazprom', 'RU', { minScore: 80, listNames: ['SDN']
 
 // Root campaign finance — narrow to party / state / cycle
 await jintel.campaignFinance('Acme PAC', 2024, { party: 'DEM', state: 'CA', minRaised: 100_000 });
+
+// FRED economic series — observations are filterable (ArrayFilterInput)
+await jintel.fred('UNRATE', { since: '2000-01-01', limit: 300 });
+await jintel.fredBatch(['GDPC1', 'CPIAUCSL'], { since: '2010-01-01' });
 ```
 
 ### Defaults
@@ -137,6 +141,10 @@ await jintel.campaignFinance('Acme PAC', 2024, { party: 'DEM', state: 'CA', minR
 | `RiskSignalFilterInput` | 20 | `DESC` |
 | `FuturesCurveFilterInput` | 50 | `ASC` |
 | `OptionsChainFilterInput` | 100 | `EXPIRATION_ASC` |
+| `ClinicalTrialFilterInput` | 20 | `DESC` (by startDate) |
+| `FdaEventFilterInput` | 20 | `DESC` (by reportDate) |
+| `LitigationFilterInput` | 20 | `DESC` (by dateFiled) |
+| `GovernmentContractFilterInput` | 20 | `DESC` (by actionDate) |
 
 Omitting `filter` on a sub-graph returns the full upstream set with that input's defaults applied.
 

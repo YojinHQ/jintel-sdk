@@ -855,6 +855,113 @@ export const SegmentRevenueSchema = z.object({
 });
 export type SegmentRevenue = z.infer<typeof SegmentRevenueSchema>;
 
+// ── Alt data sub-graphs ───────────────────────────────────────────────────
+
+export const ClinicalTrialSchema = z.object({
+  /** NCT identifier (e.g. NCT05123456). */
+  nctId: z.string(),
+  /** Official study title. */
+  title: z.string(),
+  /** Trial phase (e.g. PHASE1, PHASE2, PHASE3). Null if unspecified. */
+  phase: z.string().nullable().optional(),
+  /** Recruitment / completion status (e.g. RECRUITING, COMPLETED). */
+  status: z.string().nullable().optional(),
+  /** Disease / condition names studied. */
+  conditions: z.array(z.string()),
+  /** Intervention names (drug, device, procedure). */
+  interventions: z.array(z.string()),
+  /** Lead sponsor name. */
+  sponsor: z.string().nullable().optional(),
+  /** Study start date (YYYY-MM-DD). */
+  startDate: z.string().nullable().optional(),
+  /** Primary completion date (YYYY-MM-DD). */
+  completionDate: z.string().nullable().optional(),
+  /** Enrolled participant count. */
+  enrollment: z.number().nullable().optional(),
+});
+export type ClinicalTrial = z.infer<typeof ClinicalTrialSchema>;
+
+export const FdaEventTypeSchema = z.enum(['DRUG_ADVERSE', 'DEVICE_ADVERSE', 'DRUG_RECALL']);
+export type FdaEventType = z.infer<typeof FdaEventTypeSchema>;
+
+export const FdaEventSchema = z.object({
+  /** Upstream record identifier (safety report, MDR key, or recall number). */
+  id: z.string(),
+  /** Event kind. */
+  type: FdaEventTypeSchema,
+  /** Report date (YYYY-MM-DD). */
+  reportDate: z.string().nullable().optional(),
+  /** Severity — adverse-event outcome flag, or FDA recall class (I/II/III). */
+  severity: z.string().nullable().optional(),
+  /** Short free-text summary (device narrative or reason for recall). */
+  summary: z.string().nullable().optional(),
+  /** Product name (brand or generic). */
+  product: z.string().nullable().optional(),
+});
+export type FdaEvent = z.infer<typeof FdaEventSchema>;
+
+export const LitigationCaseSchema = z.object({
+  /** CourtListener docket / opinion cluster id. */
+  id: z.string(),
+  /** Case name, e.g. 'United States v. Foo Corp'. */
+  caseName: z.string(),
+  /** Court short code or full name. */
+  court: z.string().nullable().optional(),
+  /** Case filing date (YYYY-MM-DD). */
+  dateFiled: z.string().nullable().optional(),
+  /** Case termination date (YYYY-MM-DD). */
+  dateTerminated: z.string().nullable().optional(),
+  /** Docket number as filed. */
+  docketNumber: z.string().nullable().optional(),
+  /** Nature of suit classification. */
+  natureOfSuit: z.string().nullable().optional(),
+  /** Fully-qualified CourtListener URL. */
+  absoluteUrl: z.string().nullable().optional(),
+});
+export type LitigationCase = z.infer<typeof LitigationCaseSchema>;
+
+export const GovernmentContractSchema = z.object({
+  /** Award ID (PIID or equivalent). */
+  awardId: z.string(),
+  /** Recipient name as reported by USASpending. */
+  recipient: z.string(),
+  /** Action date (YYYY-MM-DD). */
+  actionDate: z.string().nullable().optional(),
+  /** Award amount in USD. Null when USASpending does not report a value. */
+  amount: z.number().nullable().optional(),
+  /** Awarding agency. */
+  agency: z.string().nullable().optional(),
+  /** Award type (BPA Call, IDV, Definitive Contract, etc.). */
+  awardType: z.string().nullable().optional(),
+  /** Contract description. */
+  description: z.string().nullable().optional(),
+});
+export type GovernmentContract = z.infer<typeof GovernmentContractSchema>;
+
+export const FredObservationSchema = z.object({
+  /** Observation date (YYYY-MM-DD). */
+  date: z.string(),
+  /** Observed value. Null when FRED reports missing data. */
+  value: z.number().nullable().optional(),
+});
+export type FredObservation = z.infer<typeof FredObservationSchema>;
+
+export const FredSeriesSchema = z.object({
+  /** FRED series identifier (e.g. GDPC1, UNRATE). */
+  id: z.string(),
+  /** Series title. */
+  title: z.string().nullable().optional(),
+  /** Units of measure. */
+  units: z.string().nullable().optional(),
+  /** Observation frequency ('Annual', 'Quarterly', 'Monthly', 'Daily'). */
+  frequency: z.string().nullable().optional(),
+  /** Last update timestamp from FRED. */
+  lastUpdated: z.string().nullable().optional(),
+  /** Time-series observations, newest first by default. */
+  observations: z.array(FredObservationSchema).optional(),
+});
+export type FredSeries = z.infer<typeof FredSeriesSchema>;
+
 // ── Entity (must come after all sub-graph schemas) ────────────────────────
 
 export const EntitySchema = z.object({
@@ -886,6 +993,10 @@ export const EntitySchema = z.object({
   segmentedRevenue: z.array(SegmentRevenueSchema).optional(),
   earnings: z.array(EarningsReportSchema).optional(),
   periodicFilings: z.array(PeriodicFilingSchema).optional(),
+  clinicalTrials: z.array(ClinicalTrialSchema).optional(),
+  fdaEvents: z.array(FdaEventSchema).optional(),
+  litigation: z.array(LitigationCaseSchema).optional(),
+  governmentContracts: z.array(GovernmentContractSchema).optional(),
 });
 export type Entity = z.infer<typeof EntitySchema>;
 
@@ -944,7 +1055,11 @@ export type EnrichmentField =
   | 'earningsPressReleases'
   | 'segmentedRevenue'
   | 'earnings'
-  | 'periodicFilings';
+  | 'periodicFilings'
+  | 'clinicalTrials'
+  | 'fdaEvents'
+  | 'litigation'
+  | 'governmentContracts';
 
 /** Options for array sub-graph filtering (news, research, etc — anything taking ArrayFilterInput). */
 export interface ArraySubGraphOptions {
@@ -1142,6 +1257,46 @@ export interface DiscussionsFilterOptions extends ArraySubGraphOptions {
   offset?: number;
 }
 
+/** Filter for `Entity.clinicalTrials` (ClinicalTrialFilterInput). */
+export interface ClinicalTrialFilterOptions extends ArraySubGraphOptions {
+  /** Case-insensitive phase match (e.g. 'PHASE3' or 'PHASE'). */
+  phase?: string;
+  /** Exact status match (e.g. 'RECRUITING', 'COMPLETED'). */
+  status?: string;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
+/** Filter for `Entity.fdaEvents` (FdaEventFilterInput). */
+export interface FdaEventFilterOptions extends ArraySubGraphOptions {
+  /** Restrict to one or more event kinds. */
+  types?: FdaEventType[];
+  /** Exact severity match — 'CLASS I' / 'CLASS II' / 'CLASS III' for recalls, or an outcome flag for adverse events. */
+  severity?: string;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
+/** Filter for `Entity.litigation` (LitigationFilterInput). */
+export interface LitigationFilterOptions extends ArraySubGraphOptions {
+  /** Only include cases with no dateTerminated (still open). */
+  onlyActive?: boolean;
+  /** Case-insensitive substring match against court name/citation (e.g. 'N.D. CAL'). */
+  court?: string;
+  /** Case-insensitive substring match against nature of suit (e.g. 'PATENT', 'ANTITRUST'). */
+  natureOfSuit?: string;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
+/** Filter for `Entity.governmentContracts` (GovernmentContractFilterInput). */
+export interface GovernmentContractFilterOptions extends ArraySubGraphOptions {
+  /** Only include contracts whose amount is >= this value (USD). */
+  minAmount?: number;
+  /** Number of rows to skip for pagination (default 0). */
+  offset?: number;
+}
+
 /**
  * Combined options for enrich/batchEnrich.
  *
@@ -1185,6 +1340,14 @@ export interface EnrichOptions {
   predictionsFilter?: PredictionMarketFilterOptions;
   /** Filter for `Entity.discussions`. */
   discussionsFilter?: DiscussionsFilterOptions;
+  /** Filter for `Entity.clinicalTrials`. */
+  clinicalTrialsFilter?: ClinicalTrialFilterOptions;
+  /** Filter for `Entity.fdaEvents`. */
+  fdaEventsFilter?: FdaEventFilterOptions;
+  /** Filter for `Entity.litigation`. */
+  litigationFilter?: LitigationFilterOptions;
+  /** Filter for `Entity.governmentContracts`. */
+  governmentContractsFilter?: GovernmentContractFilterOptions;
   /** Filter for `financials.income/balanceSheet/cashFlow`. */
   financialStatementsFilter?: FinancialStatementFilterOptions;
   /** Filter for `regulatory.sanctions`. */
@@ -1216,4 +1379,8 @@ export const ALL_ENRICHMENT_FIELDS: EnrichmentField[] = [
   'segmentedRevenue',
   'earnings',
   'periodicFilings',
+  'clinicalTrials',
+  'fdaEvents',
+  'litigation',
+  'governmentContracts',
 ];

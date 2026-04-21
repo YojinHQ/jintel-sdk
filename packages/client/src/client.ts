@@ -13,6 +13,8 @@ import {
   INFLATION,
   INTEREST_RATES,
   SP500_MULTIPLES,
+  FRED,
+  FRED_BATCH,
   buildBatchEnrichQuery,
   buildEnrichQuery,
 } from './queries.js';
@@ -25,6 +27,7 @@ import type {
   EntityType,
   FamaFrenchSeries,
   FactorDataPoint,
+  FredSeries,
   GdpType,
   GraphQLError,
   GraphQLResponse,
@@ -73,6 +76,10 @@ function enrichFilterVariables(options?: EnrichOptions): Record<string, unknown>
   if (options.financialStatementsFilter) vars.financialStatementsFilter = options.financialStatementsFilter;
   if (options.sanctionsFilter) vars.sanctionsFilter = options.sanctionsFilter;
   if (options.campaignFinanceFilter) vars.campaignFinanceFilter = options.campaignFinanceFilter;
+  if (options.clinicalTrialsFilter) vars.clinicalTrialsFilter = options.clinicalTrialsFilter;
+  if (options.fdaEventsFilter) vars.fdaEventsFilter = options.fdaEventsFilter;
+  if (options.litigationFilter) vars.litigationFilter = options.litigationFilter;
+  if (options.governmentContractsFilter) vars.governmentContractsFilter = options.governmentContractsFilter;
   return vars;
 }
 
@@ -711,6 +718,43 @@ export class JintelClient {
     try {
       const data = await this.request<USMarketStatus>(MARKET_STATUS, undefined, { key: 'marketStatus' });
       return { success: true, data };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * FRED economic time series by series ID (e.g. GDPC1, UNRATE, CPIAUCSL).
+   * Returns the series metadata plus observations. Pass `filter` to slice the
+   * observations by date range / limit / sort (ArrayFilterInput).
+   */
+  async fred(
+    seriesId: string,
+    filter?: ArraySubGraphOptions,
+  ): Promise<JintelResult<FredSeries | null>> {
+    try {
+      const variables: Record<string, unknown> = { seriesId };
+      if (filter) variables.filter = filter;
+      const data = await this.request<FredSeries | null>(FRED, variables, { key: 'fred' });
+      return { success: true, data: data ?? null };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * Batch variant of `fred` — fetch multiple FRED series in a single call.
+   * The same `filter` is applied to each series' observations.
+   */
+  async fredBatch(
+    seriesIds: string[],
+    filter?: ArraySubGraphOptions,
+  ): Promise<JintelResult<FredSeries[]>> {
+    try {
+      const variables: Record<string, unknown> = { seriesIds };
+      if (filter) variables.filter = filter;
+      const data = await this.request<FredSeries[]>(FRED_BATCH, variables, { key: 'fredBatch' });
+      return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
     }

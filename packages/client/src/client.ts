@@ -80,6 +80,7 @@ function enrichFilterVariables(options?: EnrichOptions): Record<string, unknown>
   if (options.fdaEventsFilter) vars.fdaEventsFilter = options.fdaEventsFilter;
   if (options.litigationFilter) vars.litigationFilter = options.litigationFilter;
   if (options.governmentContractsFilter) vars.governmentContractsFilter = options.governmentContractsFilter;
+  if (options.relationshipsFilter) vars.relationshipsFilter = options.relationshipsFilter;
   return vars;
 }
 

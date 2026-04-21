@@ -33,8 +33,24 @@ export type ExecutiveSort = z.infer<typeof ExecutiveSortSchema>;
 export const AcquisitionDirectionSchema = z.enum(['ACQUIRED', 'DISPOSED']);
 export type AcquisitionDirection = z.infer<typeof AcquisitionDirectionSchema>;
 
-export const SegmentDimensionSchema = z.enum(['PRODUCT', 'SEGMENT', 'GEOGRAPHY']);
+export const SegmentDimensionSchema = z.enum(['PRODUCT', 'SEGMENT', 'GEOGRAPHY', 'CUSTOMER']);
 export type SegmentDimension = z.infer<typeof SegmentDimensionSchema>;
+
+export const RelationshipTypeSchema = z.enum([
+  'CUSTOMER',
+  'SUBSIDIARY',
+  'GOVERNMENT_CUSTOMER',
+  'PARTNER',
+  'ADVERSARIAL',
+  'OWNERSHIP',
+]);
+export type RelationshipType = z.infer<typeof RelationshipTypeSchema>;
+
+export const RelationshipDirectionSchema = z.enum(['OUT', 'IN']);
+export type RelationshipDirection = z.infer<typeof RelationshipDirectionSchema>;
+
+export const RelationshipDisclosureSchema = z.enum(['DIRECT', 'REVERSE', 'THIRD_PARTY']);
+export type RelationshipDisclosure = z.infer<typeof RelationshipDisclosureSchema>;
 
 // ── Data Schemas ───────────────────────────────────────────────────────────
 
@@ -938,6 +954,120 @@ export const GovernmentContractSchema = z.object({
 });
 export type GovernmentContract = z.infer<typeof GovernmentContractSchema>;
 
+// ── Subsidiaries (Exhibit 21) ─────────────────────────────────────────────
+
+export const SubsidiarySchema = z.object({
+  /** Legal name as it appears in the exhibit. */
+  name: z.string(),
+  /** State or country of incorporation. Null when the filing omits it. */
+  jurisdiction: z.string().nullable().optional(),
+});
+export type Subsidiary = z.infer<typeof SubsidiarySchema>;
+
+export const SubsidiaryListSchema = z.object({
+  /** SEC accession number of the source filing. */
+  accessionNumber: z.string(),
+  /** Form type (10-K, 10-K/A, 20-F, 20-F/A). */
+  form: z.string(),
+  /** Filing date (YYYY-MM-DD). */
+  filingDate: z.string(),
+  /** Landing page URL for the filing. */
+  filingUrl: z.string(),
+  /** Direct URL to the Exhibit 21 attachment. */
+  exhibitUrl: z.string(),
+  /** Subsidiaries in the order they appeared in the exhibit. */
+  subsidiaries: z.array(SubsidiarySchema),
+  /** Count of parsed subsidiaries. */
+  count: z.number(),
+});
+export type SubsidiaryList = z.infer<typeof SubsidiaryListSchema>;
+
+// ── Concentration (HHI + top-N shares) ────────────────────────────────────
+
+export const ConcentrationComponentSchema = z.object({
+  /** Human-readable label (e.g. 'iPhone', 'Americas', 'Customer A'). */
+  label: z.string(),
+  /** Raw XBRL member qname (e.g. 'aapl:IPhoneMember'). */
+  member: z.string(),
+  /** Value in USD for this period. */
+  value: z.number(),
+  /** Share of the dimension total, 0..1. */
+  share: z.number(),
+});
+export type ConcentrationComponent = z.infer<typeof ConcentrationComponentSchema>;
+
+export const ConcentrationBreakdownSchema = z.object({
+  /** Herfindahl-Hirschman Index (0..10000). Null when fewer than 2 components. */
+  hhi: z.number().nullable().optional(),
+  /** Number of components summed. */
+  count: z.number(),
+  /** Sum of all component values (USD). */
+  total: z.number(),
+  /** Components sorted by value descending. */
+  components: z.array(ConcentrationComponentSchema),
+});
+export type ConcentrationBreakdown = z.infer<typeof ConcentrationBreakdownSchema>;
+
+export const ConcentrationProfileSchema = z.object({
+  /** Accession number of the source filing used for this rollup. */
+  accessionNumber: z.string().nullable().optional(),
+  /** Form type (10-K, 10-Q, 20-F) of the source filing. */
+  form: z.string().nullable().optional(),
+  /** Filing date (YYYY-MM-DD) of the source filing. */
+  filingDate: z.string().nullable().optional(),
+  /** Period end (YYYY-MM-DD) the rollup represents. */
+  periodEnd: z.string().nullable().optional(),
+  /** Product or service-line concentration. */
+  product: ConcentrationBreakdownSchema.nullable().optional(),
+  /** Reportable business segment concentration. */
+  segment: ConcentrationBreakdownSchema.nullable().optional(),
+  /** Geographic concentration. */
+  geography: ConcentrationBreakdownSchema.nullable().optional(),
+  /** Customer concentration — only XBRL MajorCustomersAxis members (typically >10% of revenue). */
+  customer: ConcentrationBreakdownSchema.nullable().optional(),
+});
+export type ConcentrationProfile = z.infer<typeof ConcentrationProfileSchema>;
+
+// ── Relationships (unified typed-edge graph) ──────────────────────────────
+
+export const RelationshipSourceSchema = z.object({
+  /** Jintel connector name (e.g. 'sec-segments', 'usaspending'). */
+  connector: z.string(),
+  /** URL to the source record. Null when the connector only exposes IDs. */
+  url: z.string().nullable().optional(),
+  /** ISO 8601 date the relationship was disclosed / recorded upstream. */
+  asOf: z.string().nullable().optional(),
+  /** Optional ID from the source record (accession number, award ID, NCT ID, docket number). */
+  ref: z.string().nullable().optional(),
+});
+export type RelationshipSource = z.infer<typeof RelationshipSourceSchema>;
+
+export const RelationshipEdgeSchema = z.object({
+  /** Edge kind — customer, subsidiary, partner, etc. */
+  type: RelationshipTypeSchema,
+  /** OUT = subject → counterparty. IN = counterparty → subject. */
+  direction: RelationshipDirectionSchema,
+  /** Who disclosed this relationship. */
+  disclosure: RelationshipDisclosureSchema,
+  /** 0..1 confidence score. 1.0 for structured / regulator-filed data. */
+  confidence: z.number(),
+  /** Counterparty display name. May be anonymized ('Customer A') when the filing redacts. */
+  counterpartyName: z.string(),
+  /** Ticker symbol of the counterparty, if resolved. Null is common. */
+  counterpartyTicker: z.string().nullable().optional(),
+  /** SEC CIK of the counterparty, if resolved. */
+  counterpartyCik: z.string().nullable().optional(),
+  /** Share of subject attributable to counterparty (0..1), where upstream discloses it. */
+  sharePct: z.number().nullable().optional(),
+  /** Absolute value in USD where upstream discloses it (disclosed customer revenue, award total, 13F market value). */
+  valueUsd: z.number().nullable().optional(),
+  /** Free-text context — jurisdiction, NCT ID, docket number, agency sub-office, etc. */
+  context: z.string().nullable().optional(),
+  /** Provenance — which connector emitted this edge. */
+  source: RelationshipSourceSchema,
+});
+export type RelationshipEdge = z.infer<typeof RelationshipEdgeSchema>;
+
 export const FredObservationSchema = z.object({
   /** Observation date (YYYY-MM-DD). */
   date: z.string(),
@@ -997,6 +1127,9 @@ export const EntitySchema = z.object({
   fdaEvents: z.array(FdaEventSchema).optional(),
   litigation: z.array(LitigationCaseSchema).optional(),
   governmentContracts: z.array(GovernmentContractSchema).optional(),
+  subsidiaries: SubsidiaryListSchema.nullable().optional(),
+  concentration: ConcentrationProfileSchema.nullable().optional(),
+  relationships: z.array(RelationshipEdgeSchema).optional(),
 });
 export type Entity = z.infer<typeof EntitySchema>;
 
@@ -1059,7 +1192,10 @@ export type EnrichmentField =
   | 'clinicalTrials'
   | 'fdaEvents'
   | 'litigation'
-  | 'governmentContracts';
+  | 'governmentContracts'
+  | 'subsidiaries'
+  | 'concentration'
+  | 'relationships';
 
 /** Options for array sub-graph filtering (news, research, etc — anything taking ArrayFilterInput). */
 export interface ArraySubGraphOptions {
@@ -1219,7 +1355,7 @@ export interface CampaignFinanceFilterOptions {
 
 /** Filter for `Entity.topHolders` (TopHoldersFilterInput). Replaces the old positional `(limit, offset)` args. */
 export interface TopHoldersFilterOptions extends ArraySubGraphOptions {
-  /** Only include holders with position value >= this amount (thousands of USD). */
+  /** Only include holders with position value >= this amount (whole USD — server normalizes 13F unit ambiguity at parse time). */
   minValue?: number;
   /** Number of holders to skip for pagination (default 0). */
   offset?: number;
@@ -1227,7 +1363,7 @@ export interface TopHoldersFilterOptions extends ArraySubGraphOptions {
 
 /** Filter for `Entity.institutionalHoldings` and root `institutionalHoldings` (InstitutionalHoldingsFilterInput). */
 export interface InstitutionalHoldingsFilterOptions extends ArraySubGraphOptions {
-  /** Only include holdings with value >= this amount (thousands of USD). */
+  /** Only include holdings with value >= this amount (whole USD — server normalizes 13F unit ambiguity at parse time). */
   minValue?: number;
   /** Only include holdings matching this CUSIP. */
   cusip?: string;
@@ -1298,6 +1434,31 @@ export interface GovernmentContractFilterOptions extends ArraySubGraphOptions {
 }
 
 /**
+ * Filter for `Entity.relationships` (RelationshipFilterInput).
+ * The unified relationship graph accepts domain-specific filters in addition to generic date/limit/sort.
+ */
+export interface RelationshipFilterOptions {
+  /** Restrict to one or more edge types. */
+  types?: RelationshipType[];
+  /** Restrict to one or more directions (default: both). */
+  directions?: RelationshipDirection[];
+  /** Only include edges with confidence >= this value (0..1). */
+  minConfidence?: number;
+  /** Only include edges with valueUsd >= this amount. */
+  minValue?: number;
+  /** Only include edges whose source.asOf is on or after this ISO 8601 date. */
+  since?: string;
+  /** Only include edges whose source.asOf is on or before this ISO 8601 date. */
+  until?: string;
+  /** Cap the result count (default 50, hard cap 500). */
+  limit?: number;
+  /** Offset for pagination, applied after sort and before limit. */
+  offset?: number;
+  /** Sort direction by source.asOf (default DESC — most recent first). */
+  sort?: 'ASC' | 'DESC';
+}
+
+/**
  * Combined options for enrich/batchEnrich.
  *
  * `filter` is the generic `ArrayFilterInput`. It applies only to sub-graphs that still
@@ -1348,6 +1509,8 @@ export interface EnrichOptions {
   litigationFilter?: LitigationFilterOptions;
   /** Filter for `Entity.governmentContracts`. */
   governmentContractsFilter?: GovernmentContractFilterOptions;
+  /** Filter for `Entity.relationships` — unified typed-edge graph. */
+  relationshipsFilter?: RelationshipFilterOptions;
   /** Filter for `financials.income/balanceSheet/cashFlow`. */
   financialStatementsFilter?: FinancialStatementFilterOptions;
   /** Filter for `regulatory.sanctions`. */
@@ -1383,4 +1546,7 @@ export const ALL_ENRICHMENT_FIELDS: EnrichmentField[] = [
   'fdaEvents',
   'litigation',
   'governmentContracts',
+  'subsidiaries',
+  'concentration',
+  'relationships',
 ];

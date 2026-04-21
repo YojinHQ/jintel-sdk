@@ -153,4 +153,31 @@ describe('buildBatchEnrichQuery', () => {
     expect(query).toContain('$filter: ArrayFilterInput');
     expect(query).toContain('research(filter: $filter)');
   });
+
+  it('emits subsidiaries, concentration, and relationships blocks without filter args by default', () => {
+    const query = buildBatchEnrichQuery(['subsidiaries', 'concentration', 'relationships']);
+    expect(query).toMatch(/subsidiaries\s*\{/);
+    expect(query).toContain('exhibitUrl');
+    expect(query).toContain('jurisdiction');
+    expect(query).toMatch(/concentration\s*\{/);
+    expect(query).toContain('hhi');
+    expect(query).toContain('components { label member value share }');
+    expect(query).toMatch(/relationships\s*\{/);
+    expect(query).toContain('counterpartyCik');
+    expect(query).toContain('source {');
+    expect(query).not.toContain('$relationshipsFilter');
+  });
+
+  it('threads RelationshipFilterInput when relationshipsFilter is set', () => {
+    const query = buildBatchEnrichQuery(['relationships'], {
+      relationshipsFilter: {
+        types: ['SUBSIDIARY', 'CUSTOMER'],
+        minConfidence: 0.5,
+        limit: 20,
+        sort: 'DESC',
+      },
+    });
+    expect(query).toContain('$relationshipsFilter: RelationshipFilterInput');
+    expect(query).toContain('relationships(filter: $relationshipsFilter)');
+  });
 });

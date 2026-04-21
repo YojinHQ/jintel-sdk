@@ -18,6 +18,7 @@ import type {
   NewsFilterOptions,
   OptionsChainFilterOptions,
   PredictionMarketFilterOptions,
+  RelationshipFilterOptions,
   RiskSignalFilterOptions,
   SanctionsFilterOptions,
   SegmentRevenueFilterOptions,
@@ -597,6 +598,72 @@ export const GOVERNMENT_CONTRACTS_FIELDS = `
     description
   }`;
 
+export const SUBSIDIARIES_FIELDS = `
+  subsidiaries {
+    accessionNumber
+    form
+    filingDate
+    filingUrl
+    exhibitUrl
+    count
+    subsidiaries {
+      name
+      jurisdiction
+    }
+  }`;
+
+export const CONCENTRATION_FIELDS = `
+  concentration {
+    accessionNumber
+    form
+    filingDate
+    periodEnd
+    product {
+      hhi
+      count
+      total
+      components { label member value share }
+    }
+    segment {
+      hhi
+      count
+      total
+      components { label member value share }
+    }
+    geography {
+      hhi
+      count
+      total
+      components { label member value share }
+    }
+    customer {
+      hhi
+      count
+      total
+      components { label member value share }
+    }
+  }`;
+
+export const RELATIONSHIPS_FIELDS = `
+  relationships {
+    type
+    direction
+    disclosure
+    confidence
+    counterpartyName
+    counterpartyTicker
+    counterpartyCik
+    sharePct
+    valueUsd
+    context
+    source {
+      connector
+      url
+      asOf
+      ref
+    }
+  }`;
+
 // ── Static Queries ─────────────────────────────────────────────────────────
 
 export const SEARCH_ENTITIES = `
@@ -991,6 +1058,21 @@ function hasGovernmentContractsFilter(f: GovernmentContractFilterOptions | undef
   return f.minAmount != null || f.offset != null;
 }
 
+function hasRelationshipsFilter(f: RelationshipFilterOptions | undefined): boolean {
+  if (!f) return false;
+  if (Array.isArray(f.types) && f.types.length > 0) return true;
+  if (Array.isArray(f.directions) && f.directions.length > 0) return true;
+  return (
+    f.minConfidence != null ||
+    f.minValue != null ||
+    f.since != null ||
+    f.until != null ||
+    f.limit != null ||
+    f.offset != null ||
+    f.sort != null
+  );
+}
+
 interface BuildFlags {
   hasFilter: boolean;
   hasFilingsFilter: boolean;
@@ -1013,6 +1095,7 @@ interface BuildFlags {
   hasFdaEventsFilter: boolean;
   hasLitigationFilter: boolean;
   hasGovernmentContractsFilter: boolean;
+  hasRelationshipsFilter: boolean;
 }
 
 /** Inline `(filter: $varName)` onto a nested field inside an aggregate block. */
@@ -1098,6 +1181,7 @@ const CLINICAL_TRIALS_INNER = CLINICAL_TRIALS_FIELDS.trim().replace(/^clinicalTr
 const FDA_EVENTS_INNER = FDA_EVENTS_FIELDS.trim().replace(/^fdaEvents\s*\{\s*|\s*\}$/g, '').trim();
 const LITIGATION_INNER = LITIGATION_FIELDS.trim().replace(/^litigation\s*\{\s*|\s*\}$/g, '').trim();
 const GOVERNMENT_CONTRACTS_INNER = GOVERNMENT_CONTRACTS_FIELDS.trim().replace(/^governmentContracts\s*\{\s*|\s*\}$/g, '').trim();
+const RELATIONSHIPS_INNER = RELATIONSHIPS_FIELDS.trim().replace(/^relationships\s*\{\s*|\s*\}$/g, '').trim();
 
 function blockFor(field: EnrichmentField, flags: BuildFlags): string {
   switch (field) {
@@ -1161,6 +1245,14 @@ function blockFor(field: EnrichmentField, flags: BuildFlags): string {
       return flags.hasGovernmentContractsFilter
         ? filteredBlock('governmentContracts', 'governmentContractsFilter', GOVERNMENT_CONTRACTS_INNER)
         : GOVERNMENT_CONTRACTS_FIELDS.trim();
+    case 'subsidiaries':
+      return SUBSIDIARIES_FIELDS.trim();
+    case 'concentration':
+      return CONCENTRATION_FIELDS.trim();
+    case 'relationships':
+      return flags.hasRelationshipsFilter
+        ? filteredBlock('relationships', 'relationshipsFilter', RELATIONSHIPS_INNER)
+        : RELATIONSHIPS_FIELDS.trim();
     case 'technicals':
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
@@ -1204,6 +1296,9 @@ const DEFAULT_FIELD_BLOCK: Record<EnrichmentField, string> = {
   fdaEvents: FDA_EVENTS_FIELDS.trim(),
   litigation: LITIGATION_FIELDS.trim(),
   governmentContracts: GOVERNMENT_CONTRACTS_FIELDS.trim(),
+  subsidiaries: SUBSIDIARIES_FIELDS.trim(),
+  concentration: CONCENTRATION_FIELDS.trim(),
+  relationships: RELATIONSHIPS_FIELDS.trim(),
 };
 
 function buildBlocks(fields: EnrichmentField[], flags: BuildFlags): string {
@@ -1248,6 +1343,8 @@ function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
     vars += ', $litigationFilter: LitigationFilterInput';
   if (flags.hasGovernmentContractsFilter && fields.includes('governmentContracts'))
     vars += ', $governmentContractsFilter: GovernmentContractFilterInput';
+  if (flags.hasRelationshipsFilter && fields.includes('relationships'))
+    vars += ', $relationshipsFilter: RelationshipFilterInput';
   return vars;
 }
 
@@ -1280,6 +1377,7 @@ function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlag
     hasGovernmentContractsFilter: enriched
       ? hasGovernmentContractsFilter(options.governmentContractsFilter)
       : false,
+    hasRelationshipsFilter: enriched ? hasRelationshipsFilter(options.relationshipsFilter) : false,
   };
 }
 
@@ -1346,6 +1444,7 @@ const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
   'fdaEventsFilter',
   'litigationFilter',
   'governmentContractsFilter',
+  'relationshipsFilter',
 ];
 
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {

@@ -1063,6 +1063,10 @@ export const RelationshipEdgeSchema = z.object({
   valueUsd: z.number().nullable().optional(),
   /** Free-text context — jurisdiction, NCT ID, docket number, agency sub-office, etc. */
   context: z.string().nullable().optional(),
+  /** ISO 8601 date the edge was first observed. For single-snapshot adapters this equals lastConfirmedAt. Null when the underlying source has no date. Optional for back-compat with pre-0.25.0 servers. */
+  firstSeenAt: z.string().nullable().optional(),
+  /** ISO 8601 date of the most recent observation confirming this edge. Equals source.asOf for single-snapshot adapters. Null when the underlying source has no date. Optional for back-compat with pre-0.25.0 servers. */
+  lastConfirmedAt: z.string().nullable().optional(),
   /** Provenance — which connector emitted this edge. */
   source: RelationshipSourceSchema,
 });

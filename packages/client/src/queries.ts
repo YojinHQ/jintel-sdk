@@ -656,6 +656,8 @@ export const RELATIONSHIPS_FIELDS = `
     sharePct
     valueUsd
     context
+    firstSeenAt
+    lastConfirmedAt
     source {
       connector
       url

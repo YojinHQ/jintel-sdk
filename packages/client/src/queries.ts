@@ -644,6 +644,19 @@ export const CONCENTRATION_FIELDS = `
     }
   }`;
 
+export const PARENT_FIELDS = `
+  parent {
+    name
+    cik
+    percentOwned
+    source {
+      connector
+      url
+      asOf
+      ref
+    }
+  }`;
+
 export const RELATIONSHIPS_FIELDS = `
   relationships {
     type
@@ -1301,6 +1314,7 @@ const DEFAULT_FIELD_BLOCK: Record<EnrichmentField, string> = {
   subsidiaries: SUBSIDIARIES_FIELDS.trim(),
   concentration: CONCENTRATION_FIELDS.trim(),
   relationships: RELATIONSHIPS_FIELDS.trim(),
+  parent: PARENT_FIELDS.trim(),
 };
 
 function buildBlocks(fields: EnrichmentField[], flags: BuildFlags): string {

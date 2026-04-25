@@ -287,6 +287,17 @@ export const GraphQLErrorSchema = z.object({
 });
 export type GraphQLError = z.infer<typeof GraphQLErrorSchema>;
 
+export const AsOfFieldPolicySchema = z.object({
+  class: z.enum(['SUPPORTED', 'BEST_EFFORT', 'UNSUPPORTED']),
+  coverageStart: z.string().optional(),
+  warning: z.string().optional(),
+});
+
+export const AsOfExtensionSchema = z.object({
+  requested: z.string().nullable(),
+  fields: z.record(z.string(), AsOfFieldPolicySchema),
+});
+
 export const GraphQLResponseSchema = z.object({
   data: z.unknown().nullable(),
   errors: z.array(GraphQLErrorSchema).optional(),
@@ -300,8 +311,14 @@ export const GraphQLResponseSchema = z.object({
           cached: z.boolean().optional(),
         })
         .optional(),
+      /**
+       * Per-field point-in-time provenance — emitted only when the request
+       * was PIT (`asOf` set). See `docs/agent-native-pivot/asof-spec.md` §8.
+       */
+      asOf: AsOfExtensionSchema.optional(),
     })
-    .optional(),
+    .optional()
+    .nullable(),
 });
 export type GraphQLResponse = z.infer<typeof GraphQLResponseSchema>;
 
@@ -1186,6 +1203,43 @@ export interface JintelClientConfig {
    * (e.g. multiple micro research cycles, ReflectionEngine per-ticker price lookups).
    */
   cache?: boolean | JintelClientCacheConfig;
+  /**
+   * Default point-in-time bound applied to every query that supports it.
+   * ISO 8601 timestamp. Per-call `asOf` overrides this. Use this to lock an
+   * entire backtest run to a single replay date.
+   *
+   * When set, every response reflects what was knowable at this timestamp:
+   * SUPPORTED sub-graphs are date-bounded; UNSUPPORTED sub-graphs (live
+   * quotes, current fundamentals, OFAC SDN, etc.) return `null`/`[]` rather
+   * than serve current data. The `extensions.asOf.fields` map (see
+   * {@link AsOfExtension}) reports the per-field PIT class on every reply.
+   */
+  asOf?: string;
+}
+
+/** Options accepted by every method that maps to an `asOf`-aware query. */
+export interface AsOfOption {
+  /** Point-in-time bound for this call (ISO 8601). Overrides the client-level default. */
+  asOf?: string;
+}
+
+/**
+ * Per-field PIT classification surfaced in `extensions.asOf.fields` whenever
+ * the request was point-in-time. Mirrors the server-side
+ * `docs/agent-native-pivot/asof-spec.md` §8 envelope.
+ */
+export interface AsOfFieldPolicy {
+  /** SUPPORTED — honored honestly. BEST_EFFORT — bounded but with caveat. UNSUPPORTED — short-circuited to null. */
+  class: 'SUPPORTED' | 'BEST_EFFORT' | 'UNSUPPORTED';
+  coverageStart?: string;
+  warning?: string;
+}
+
+export interface AsOfExtension {
+  /** The original ISO timestamp the caller sent. */
+  requested: string | null;
+  /** Per-field policy keyed by GraphQL field path (`Type.field`). */
+  fields: Record<string, AsOfFieldPolicy>;
 }
 
 export interface RequestOptions<T = unknown> {
@@ -1547,6 +1601,12 @@ export interface EnrichOptions {
   sanctionsFilter?: SanctionsFilterOptions;
   /** Filter for `regulatory.campaignFinance`. */
   campaignFinanceFilter?: CampaignFinanceFilterOptions;
+  /**
+   * Point-in-time bound (ISO 8601). Bounds every sub-graph in the resulting
+   * query to data knowable at this timestamp. UNSUPPORTED sub-graphs (live
+   * quotes, current fundamentals, etc.) short-circuit to null.
+   */
+  asOf?: string;
 }
 
 export const ALL_ENRICHMENT_FIELDS: EnrichmentField[] = [

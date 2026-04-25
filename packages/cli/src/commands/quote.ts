@@ -29,12 +29,17 @@ export async function runQuote(opts: CommandOptions): Promise<ExitCode> {
     const data = unwrapResult(result);
     if (data === undefined) return EXIT.RUNTIME_ERROR;
 
+    // The server returns one entry per requested ticker; entries are null when
+    // upstream had no data (or when asOf gates a live-only field). Drop those
+    // for the table view so the rendered rows are well-typed.
+    const rows = data.filter((q): q is NonNullable<typeof q> => q !== null);
+
     if (opts.json) {
       printJson(data);
       return EXIT.OK;
     }
 
-    printTable(data, [
+    printTable(rows, [
       { header: 'TICKER', get: (q) => q.ticker },
       { header: 'PRICE', align: 'right', get: (q) => fmtNum(q.price) },
       { header: 'CHANGE', align: 'right', get: (q) => fmtNum(q.change) },

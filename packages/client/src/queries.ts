@@ -682,8 +682,8 @@ export const RELATIONSHIPS_FIELDS = `
 // ── Static Queries ─────────────────────────────────────────────────────────
 
 export const SEARCH_ENTITIES = `
-  query SearchEntities($query: String!, $type: EntityType, $limit: Int) {
-    searchEntities(query: $query, type: $type, limit: $limit) {
+  query SearchEntities($query: String!, $type: EntityType, $limit: Int, $asOf: String) {
+    searchEntities(query: $query, type: $type, limit: $limit, asOf: $asOf) {
       id
       name
       type
@@ -694,8 +694,8 @@ export const SEARCH_ENTITIES = `
   }`;
 
 export const ENTITY = `
-  query Entity($id: ID!) {
-    entity(id: $id) {
+  query Entity($id: ID!, $asOf: String) {
+    entity(id: $id, asOf: $asOf) {
       id
       name
       type
@@ -706,8 +706,8 @@ export const ENTITY = `
   }`;
 
 export const ENTITY_BY_TICKER = `
-  query EntityByTicker($ticker: String!) {
-    entityByTicker(ticker: $ticker) {
+  query EntityByTicker($ticker: String!, $asOf: String) {
+    entityByTicker(ticker: $ticker, asOf: $asOf) {
       id
       name
       type
@@ -718,8 +718,8 @@ export const ENTITY_BY_TICKER = `
   }`;
 
 export const QUOTES = `
-  query Quotes($tickers: [String!]!) {
-    quotes(tickers: $tickers) {
+  query Quotes($tickers: [String!]!, $asOf: String) {
+    quotes(tickers: $tickers, asOf: $asOf) {
       ticker
       price
       open
@@ -745,8 +745,8 @@ export const QUOTES = `
 export const BATCH_QUOTES = QUOTES;
 
 export const SANCTIONS_SCREEN = `
-  query SanctionsScreen($name: String!, $country: String, $filter: SanctionsFilterInput) {
-    sanctionsScreen(name: $name, country: $country, filter: $filter) {
+  query SanctionsScreen($name: String!, $country: String, $filter: SanctionsFilterInput, $asOf: String) {
+    sanctionsScreen(name: $name, country: $country, filter: $filter, asOf: $asOf) {
       listName
       matchedName
       score
@@ -794,8 +794,8 @@ export const SP500_MULTIPLES = `
   }`;
 
 export const PRICE_HISTORY = `
-  query PriceHistory($tickers: [String!]!, $range: String, $interval: String) {
-    priceHistory(tickers: $tickers, range: $range, interval: $interval) {
+  query PriceHistory($tickers: [String!]!, $range: String, $interval: String, $asOf: String) {
+    priceHistory(tickers: $tickers, range: $range, interval: $interval, asOf: $asOf) {
       ticker
       history {
         date
@@ -848,8 +848,8 @@ export const CAMPAIGN_FINANCE = `
   }`;
 
 export const INSTITUTIONAL_HOLDINGS = `
-  query InstitutionalHoldings($cik: String!, $filter: InstitutionalHoldingsFilterInput) {
-    institutionalHoldings(cik: $cik, filter: $filter) {
+  query InstitutionalHoldings($cik: String!, $filter: InstitutionalHoldingsFilterInput, $asOf: String) {
+    institutionalHoldings(cik: $cik, filter: $filter, asOf: $asOf) {
       issuerName
       cusip
       titleOfClass
@@ -1403,8 +1403,8 @@ export function buildEnrichQuery(fields: EnrichmentField[], options?: EnrichOpti
   const blocks = buildBlocks(fields, flags);
 
   return `
-  query EnrichEntity($id: ID!${vars}) {
-    entity(id: $id) {
+  query EnrichEntity($id: ID!, $asOf: String${vars}) {
+    entity(id: $id, asOf: $asOf) {
       id
       name
       type
@@ -1425,8 +1425,8 @@ export function buildBatchEnrichQuery(
   const blocks = buildBlocks(fields, flags);
 
   return `
-  query BatchEnrich($tickers: [String!]!${vars}) {
-    entitiesByTickers(tickers: $tickers) {
+  query BatchEnrich($tickers: [String!]!, $asOf: String${vars}) {
+    entitiesByTickers(tickers: $tickers, asOf: $asOf) {
       id
       name
       type

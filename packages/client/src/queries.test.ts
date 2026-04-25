@@ -138,9 +138,10 @@ describe('buildEnrichQuery', () => {
 describe('buildBatchEnrichQuery', () => {
   it('generates batch query without filter args when no options', () => {
     const query = buildBatchEnrichQuery(['news']);
-    expect(query).toContain('entitiesByTickers(tickers: $tickers)');
+    // entitiesByTickers always carries the optional `asOf` arg, but no filter vars.
+    expect(query).toContain('entitiesByTickers(tickers: $tickers, asOf: $asOf)');
     expect(query).toContain('news {');
-    expect(query).not.toContain('$filter');
+    expect(query).not.toContain('$filter:');
   });
 
   it('threads a news-specific filter through a batch query', () => {
@@ -198,5 +199,19 @@ describe('buildBatchEnrichQuery', () => {
     expect(query).toContain('asOf');
     expect(query).toContain('ref');
     expect(query).not.toContain('parent(');
+  });
+});
+
+describe('asOf is plumbed into entity / batch queries', () => {
+  it('buildEnrichQuery declares $asOf and forwards it on entity()', () => {
+    const query = buildEnrichQuery(['news']);
+    expect(query).toContain('$asOf: String');
+    expect(query).toMatch(/entity\(id: \$id, asOf: \$asOf\)/);
+  });
+
+  it('buildBatchEnrichQuery declares $asOf and forwards it on entitiesByTickers()', () => {
+    const query = buildBatchEnrichQuery(['news']);
+    expect(query).toContain('$asOf: String');
+    expect(query).toMatch(/entitiesByTickers\(tickers: \$tickers, asOf: \$asOf\)/);
   });
 });

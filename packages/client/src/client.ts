@@ -20,6 +20,8 @@ import {
 } from './queries.js';
 import type {
   ArraySubGraphOptions,
+  AsOfExtension,
+  AsOfOption,
   CampaignFinanceFilterOptions,
   EconomicDataPoint,
   EnrichmentField,
@@ -121,16 +123,16 @@ class ResponseCache {
     this.store.set(key, { data, expiresAt: Date.now() + ttlMs });
   }
 
-  quoteKey(tickers: string[]): string {
-    return `q:${[...tickers].sort().join(',')}`;
+  quoteKey(tickers: string[], asOf?: string): string {
+    return `q:${[...tickers].sort().join(',')}:${asOf ?? 'live'}`;
   }
 
-  enrichKey(tickers: string[], fields: EnrichmentField[]): string {
-    return `e:${[...tickers].sort().join(',')}:${[...fields].sort().join(',')}`;
+  enrichKey(tickers: string[], fields: EnrichmentField[], asOf?: string): string {
+    return `e:${[...tickers].sort().join(',')}:${[...fields].sort().join(',')}:${asOf ?? 'live'}`;
   }
 
-  priceHistoryKey(tickers: string[], range?: string, interval?: string): string {
-    return `ph:${[...tickers].sort().join(',')}:${range ?? ''}:${interval ?? ''}`;
+  priceHistoryKey(tickers: string[], range?: string, interval?: string, asOf?: string): string {
+    return `ph:${[...tickers].sort().join(',')}:${range ?? ''}:${interval ?? ''}:${asOf ?? 'live'}`;
   }
 
   /**
@@ -273,6 +275,7 @@ export class JintelClient {
   private readonly timeout: number;
   private readonly debug: boolean;
   private readonly responseCache?: ResponseCache;
+  private readonly defaultAsOf?: string;
 
   constructor(config: JintelClientConfig) {
     if (!config.apiKey) {
@@ -282,9 +285,15 @@ export class JintelClient {
     this.apiKey = config.apiKey;
     this.timeout = config.timeout ?? 30_000;
     this.debug = config.debug ?? false;
+    this.defaultAsOf = config.asOf;
     if (config.cache) {
       this.responseCache = new ResponseCache(config.cache === true ? {} : config.cache);
     }
+  }
+
+  /** Resolve the effective asOf for a call: per-call override > client default > undefined. */
+  private resolveAsOf(perCall?: string): string | undefined {
+    return perCall ?? this.defaultAsOf;
   }
 
   // ── Private ─────────────────────────────────────────────────────────────
@@ -424,12 +433,14 @@ export class JintelClient {
 
   async searchEntities(
     query: string,
-    options?: { type?: EntityType; limit?: number },
+    options?: { type?: EntityType; limit?: number } & AsOfOption,
   ): Promise<JintelResult<Entity[]>> {
     try {
       const variables: Record<string, unknown> = { query };
       if (options?.type) variables.type = options.type;
       if (options?.limit != null) variables.limit = options.limit;
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
 
       const data = await this.request<Entity[]>(SEARCH_ENTITIES, variables, {
         key: 'searchEntities',
@@ -449,6 +460,8 @@ export class JintelClient {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
       const query = buildEnrichQuery(selectedFields, options);
       const variables: Record<string, unknown> = { id: ticker, ...enrichFilterVariables(options) };
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
       const data = await this.request<Entity>(query, variables, { key: 'entity' });
       if (!data) {
         return { success: false, error: `Entity not found: ${ticker}` };
@@ -483,9 +496,11 @@ export class JintelClient {
       const selectedFields = fields ?? ALL_ENRICHMENT_FIELDS;
       const query = buildBatchEnrichQuery(selectedFields, options);
       const variables: Record<string, unknown> = { tickers, ...enrichFilterVariables(options) };
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
 
       if (this.responseCache) {
-        const key = this.responseCache.enrichKey(tickers, selectedFields);
+        const key = this.responseCache.enrichKey(tickers, selectedFields, asOf);
         const cached = this.responseCache.get<Entity[]>(key);
         if (cached) return { success: true, data: cached };
         const data = await this.request<Entity[]>(query, variables, { key: 'entitiesByTickers' });
@@ -500,18 +515,22 @@ export class JintelClient {
     }
   }
 
-  async quotes(tickers: string[]): Promise<JintelResult<MarketQuote[]>> {
+  async quotes(tickers: string[], options?: AsOfOption): Promise<JintelResult<(MarketQuote | null)[]>> {
     try {
+      const asOf = this.resolveAsOf(options?.asOf);
+      const variables: Record<string, unknown> = { tickers };
+      if (asOf) variables.asOf = asOf;
+
       if (this.responseCache) {
-        const key = this.responseCache.quoteKey(tickers);
-        const cached = this.responseCache.get<MarketQuote[]>(key);
+        const key = this.responseCache.quoteKey(tickers, asOf);
+        const cached = this.responseCache.get<(MarketQuote | null)[]>(key);
         if (cached) return { success: true, data: cached };
-        const data = await this.request<MarketQuote[]>(QUOTES, { tickers }, { key: 'quotes' });
+        const data = await this.request<(MarketQuote | null)[]>(QUOTES, variables, { key: 'quotes' });
         const result = data ?? [];
         this.responseCache.set(key, result, this.responseCache.quotesTtlMs);
         return { success: true, data: result };
       }
-      const data = await this.request<MarketQuote[]>(QUOTES, { tickers }, { key: 'quotes' });
+      const data = await this.request<(MarketQuote | null)[]>(QUOTES, variables, { key: 'quotes' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
@@ -526,11 +545,14 @@ export class JintelClient {
     name: string,
     country?: string,
     filter?: SanctionsFilterOptions,
+    options?: AsOfOption,
   ): Promise<JintelResult<SanctionsMatch[]>> {
     try {
       const variables: Record<string, unknown> = { name };
       if (country) variables.country = country;
       if (filter) variables.filter = filter;
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
 
       const data = await this.request<SanctionsMatch[]>(SANCTIONS_SCREEN, variables, { key: 'sanctionsScreen' });
       return { success: true, data: data ?? [] };
@@ -548,6 +570,7 @@ export class JintelClient {
     tickers: string[],
     range?: string,
     interval?: string,
+    options?: AsOfOption,
   ): Promise<JintelResult<TickerPriceHistory[]>> {
     if (tickers.length === 0) {
       return { success: true, data: [] };
@@ -562,9 +585,11 @@ export class JintelClient {
       const variables: Record<string, unknown> = { tickers };
       if (range) variables.range = range;
       if (interval) variables.interval = interval;
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
 
       if (this.responseCache) {
-        const key = this.responseCache.priceHistoryKey(tickers, range, interval);
+        const key = this.responseCache.priceHistoryKey(tickers, range, interval, asOf);
         const cached = this.responseCache.get<TickerPriceHistory[]>(key);
         if (cached) return { success: true, data: cached };
         const data = await this.request<TickerPriceHistory[]>(PRICE_HISTORY, variables, { key: 'priceHistory' });
@@ -621,10 +646,13 @@ export class JintelClient {
   async institutionalHoldings(
     cik: string,
     filter?: InstitutionalHoldingsFilterOptions,
+    options?: AsOfOption,
   ): Promise<JintelResult<InstitutionalHolding[]>> {
     try {
       const variables: Record<string, unknown> = { cik };
       if (filter) variables.filter = filter;
+      const asOf = this.resolveAsOf(options?.asOf);
+      if (asOf) variables.asOf = asOf;
       const data = await this.request<InstitutionalHolding[]>(INSTITUTIONAL_HOLDINGS, variables, {
         key: 'institutionalHoldings',
       });

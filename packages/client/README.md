@@ -165,6 +165,38 @@ const batch = await jintel.batchEnrich(
 );
 ```
 
+## Point-in-time queries (`asOf`)
+
+Pass `asOf` (ISO 8601) to bound a query to data that was knowable at that timestamp — no lookahead bias in backtests. Set it per call or as a client-wide default.
+
+```ts
+// Per-call — overrides any default.
+const aaplLastSummer = await jintel.batchEnrich(
+  ['AAPL'],
+  ['news', 'institutionalHoldings'],
+  { asOf: '2023-08-15T00:00:00Z', filter: { limit: 5 } },
+);
+
+// Or once at construction — locks the entire client to a replay date.
+const replay = new JintelClient({
+  apiKey: process.env.JINTEL_API_KEY!,
+  asOf: '2023-08-15T00:00:00Z',
+});
+```
+
+Every PIT response carries `extensions.asOf.fields` with the per-field policy:
+
+```ts
+const { extensions } = await jintel.rawRequest<{ quotes: unknown }>(
+  `query Q($t: [String!]!, $a: String) { quotes(tickers: $t, asOf: $a) { ticker } }`,
+  { t: ['AAPL'], a: '2023-08-15T00:00:00Z' },
+);
+console.log(extensions?.asOf?.fields);
+// { 'MarketData.quote': { class: 'UNSUPPORTED', warning: 'Source serves a live state...' } }
+```
+
+`SUPPORTED` fields honor `asOf` honestly. `BEST_EFFORT` fields run with a documented caveat. `UNSUPPORTED` fields (live quotes, current fundamentals, OFAC SDN, derivatives, etc.) return `null`/`[]` rather than serve current data — `quotes()` returns `(MarketQuote | null)[]` so callers must handle the gap. Cached responses are bucketed by `asOf`, so PIT and live requests never share a slot.
+
 ## Response caching
 
 Pass `cache: true` to enable an in-process TTL cache (30 s for quotes, 5 min for enrich / price history). Eliminates redundant HTTP when the same data is requested in a short window.

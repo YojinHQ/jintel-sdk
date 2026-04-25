@@ -203,6 +203,14 @@ export type {
   InstitutionalHoldingsFilterOptions,
   PredictionMarketFilterOptions,
   EnrichOptions,
+  AsOfOption,
+  AsOfExtension,
+  AsOfFieldPolicy,
+} from "./types.js";
+
+export {
+  AsOfFieldPolicySchema,
+  AsOfExtensionSchema,
 } from "./types.js";
 
 export {

@@ -13,8 +13,8 @@ import {
   INFLATION,
   INTEREST_RATES,
   SP500_MULTIPLES,
-  FRED,
-  FRED_BATCH,
+  MACRO_SERIES,
+  MACRO_SERIES_BATCH,
   buildBatchEnrichQuery,
   buildEnrichQuery,
 } from './queries.js';
@@ -27,7 +27,7 @@ import type {
   EntityType,
   FamaFrenchSeries,
   FactorDataPoint,
-  FredSeries,
+  MacroSeries,
   GdpType,
   GraphQLError,
   GraphQLResponse,
@@ -519,7 +519,7 @@ export class JintelClient {
   }
 
   /**
-   * OFAC sanctions screening. Accepts `SanctionsFilterInput` to narrow by score,
+   * Sanctions-list screening. Accepts `SanctionsFilterInput` to narrow by score,
    * list name, or sanctions program.
    */
   async sanctionsScreen(
@@ -594,7 +594,7 @@ export class JintelClient {
   }
 
   /**
-   * Campaign finance / PAC data via OpenFEC. Accepts `CampaignFinanceFilterInput`
+   * Campaign finance / PAC data. Accepts `CampaignFinanceFilterInput`
    * to narrow by party, state, committee type, or minimum raised.
    */
   async campaignFinance(
@@ -653,7 +653,7 @@ export class JintelClient {
   }
 
   /**
-   * GDP data by country via OECD. Pass `type` to select REAL, NOMINAL, or FORECAST.
+   * GDP data by country. Pass `type` to select REAL, NOMINAL, or FORECAST.
    * Optional `filter` slices by date range and limit (ArrayFilterInput).
    */
   async gdp(
@@ -673,7 +673,7 @@ export class JintelClient {
   }
 
   /**
-   * CPI / inflation data by country via OECD. Optional `filter` (ArrayFilterInput).
+   * CPI / inflation data by country. Optional `filter` (ArrayFilterInput).
    */
   async inflation(country: string, filter?: ArraySubGraphOptions): Promise<JintelResult<EconomicDataPoint[]>> {
     try {
@@ -687,7 +687,7 @@ export class JintelClient {
   }
 
   /**
-   * Policy interest rates by country via OECD. Optional `filter` (ArrayFilterInput).
+   * Policy interest rates by country. Optional `filter` (ArrayFilterInput).
    */
   async interestRates(country: string, filter?: ArraySubGraphOptions): Promise<JintelResult<EconomicDataPoint[]>> {
     try {
@@ -701,7 +701,7 @@ export class JintelClient {
   }
 
   /**
-   * S&P 500 valuation multiples via Multpl (PE, CAPE, dividend yield, etc).
+   * S&P 500 valuation multiples (PE, CAPE, dividend yield, etc).
    * Optional `filter` (ArrayFilterInput) to slice the historical series.
    */
   async sp500Multiples(series: SP500Series, filter?: ArraySubGraphOptions): Promise<JintelResult<SP500DataPoint[]>> {
@@ -725,18 +725,18 @@ export class JintelClient {
   }
 
   /**
-   * FRED economic time series by series ID (e.g. GDPC1, UNRATE, CPIAUCSL).
+   * US macro economic time series by series ID (e.g. GDPC1, UNRATE, CPIAUCSL).
    * Returns the series metadata plus observations. Pass `filter` to slice the
    * observations by date range / limit / sort (ArrayFilterInput).
    */
-  async fred(
+  async macroSeries(
     seriesId: string,
     filter?: ArraySubGraphOptions,
-  ): Promise<JintelResult<FredSeries | null>> {
+  ): Promise<JintelResult<MacroSeries | null>> {
     try {
       const variables: Record<string, unknown> = { seriesId };
       if (filter) variables.filter = filter;
-      const data = await this.request<FredSeries | null>(FRED, variables, { key: 'fred' });
+      const data = await this.request<MacroSeries | null>(MACRO_SERIES, variables, { key: 'macroSeries' });
       return { success: true, data: data ?? null };
     } catch (err) {
       return this.handleError(err);
@@ -744,17 +744,17 @@ export class JintelClient {
   }
 
   /**
-   * Batch variant of `fred` — fetch multiple FRED series in a single call.
+   * Batch variant of `macroSeries` — fetch multiple macro series in a single call.
    * The same `filter` is applied to each series' observations.
    */
-  async fredBatch(
+  async macroSeriesBatch(
     seriesIds: string[],
     filter?: ArraySubGraphOptions,
-  ): Promise<JintelResult<FredSeries[]>> {
+  ): Promise<JintelResult<MacroSeries[]>> {
     try {
       const variables: Record<string, unknown> = { seriesIds };
       if (filter) variables.filter = filter;
-      const data = await this.request<FredSeries[]>(FRED_BATCH, variables, { key: 'fredBatch' });
+      const data = await this.request<MacroSeries[]>(MACRO_SERIES_BATCH, variables, { key: 'macroSeriesBatch' });
       return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);

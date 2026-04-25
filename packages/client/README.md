@@ -34,7 +34,7 @@ await jintel.enrichEntity('AAPL', ['research', 'market'], {
 
 // NewsFilterInput — filter by source and sentiment score
 await jintel.enrichEntity('AAPL', ['news'], {
-  newsFilter: { sources: ['CNBC', 'finnhub'], minSentiment: 0, limit: 10 },
+  newsFilter: { minSentiment: 0, limit: 10 },
 });
 
 // ExecutivesFilterInput — top-paid officers only
@@ -118,9 +118,9 @@ await jintel.sanctionsScreen('Gazprom', 'RU', { minScore: 80, listNames: ['SDN']
 // Root campaign finance — narrow to party / state / cycle
 await jintel.campaignFinance('Acme PAC', 2024, { party: 'DEM', state: 'CA', minRaised: 100_000 });
 
-// FRED economic series — observations are filterable (ArrayFilterInput)
-await jintel.fred('UNRATE', { since: '2000-01-01', limit: 300 });
-await jintel.fredBatch(['GDPC1', 'CPIAUCSL'], { since: '2010-01-01' });
+// US macro economic series — observations are filterable (ArrayFilterInput)
+await jintel.macroSeries('UNRATE', { since: '2000-01-01', limit: 300 });
+await jintel.macroSeriesBatch(['GDPC1', 'CPIAUCSL'], { since: '2010-01-01' });
 ```
 
 ### Defaults

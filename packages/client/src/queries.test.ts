@@ -32,7 +32,7 @@ describe('buildEnrichQuery', () => {
   });
 
   it('news uses NewsFilterInput (not the generic ArrayFilterInput)', () => {
-    const query = buildEnrichQuery(['news'], { newsFilter: { sources: ['CNBC'], minSentiment: 0 } });
+    const query = buildEnrichQuery(['news'], { newsFilter: { sources: ['example'], minSentiment: 0 } });
     expect(query).toContain('$newsFilter: NewsFilterInput');
     expect(query).toContain('news(filter: $newsFilter)');
   });
@@ -145,7 +145,7 @@ describe('buildBatchEnrichQuery', () => {
 
   it('threads a news-specific filter through a batch query', () => {
     const query = buildBatchEnrichQuery(['news', 'research'], {
-      newsFilter: { sources: ['finnhub'], limit: 10 },
+      newsFilter: { sources: ['example'], limit: 10 },
       filter: { since: '2024-01-01' },
     });
     expect(query).toContain('$newsFilter: NewsFilterInput');

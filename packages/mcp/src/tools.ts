@@ -455,7 +455,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_quote",
       description:
-        "Fetch real-time stock, crypto, and index quotes for one or more tickers. Use for price, change, volume, day range, and market cap. Accepts equity tickers (AAPL, MSFT), crypto (BTC, ETH), and indices (^GSPC). Batch up to many tickers in a single call.",
+        "Fetch real-time price quotes for one or more tickers — price, change %, volume, day range, market cap. Accepts equities (AAPL, MSFT), crypto (BTC, ETH), and indices (^GSPC). Returns an array of MarketQuote objects, one per ticker. Use this for current snapshots; for historical OHLCV candles use `jintel_price_history`. Always batch multiple tickers in one call rather than calling per-ticker.",
       inputSchema: {
         type: "object",
         properties: {
@@ -483,7 +483,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_search",
       description:
-        "Search for entities (companies, people, crypto, commodities, indices) by name, ticker, or keyword. Returns matches with canonical IDs, display names, tickers, and confidence scores. Use before enrich when you only have a company name.",
+        "Search for entities (companies, people, crypto, commodities, indices) by name, ticker, or keyword. Use this FIRST when you only have a company name — pass the resulting ticker / entity ID into any other tool. Returns up to `limit` matches sorted by confidence, each with `{ id, name, type, tickers, confidence }`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -520,7 +520,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_enrich",
       description:
-        "Fetch a full entity profile for a single ticker — market data, fundamentals, news, technicals, regulatory filings, sentiment, ownership, analyst estimates, and more. Use when you want a deep dive on one company or asset. Specify `fields` to reduce payload size.",
+        "Fetch the full entity profile for one ticker in a single call — market, news, fundamentals, technicals, regulatory, sentiment, ownership, and more. Use for a deep cross-domain dive. **Specify `fields` to limit the payload** — leaving it empty fetches all 30 sub-graphs and can return very large responses. For a single sub-graph, prefer the dedicated tool (`jintel_news`, `jintel_technicals`, …) which exposes per-domain filters.",
       inputSchema: {
         type: "object",
         properties: {
@@ -547,7 +547,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_batch_enrich",
       description:
-        "Fetch full entity profiles for up to 20 tickers in one call. Preferred over jintel_enrich when analyzing multiple assets — upstream API calls are batched and deduplicated server-side. Specify `fields` to reduce payload size.",
+        "Fetch full entity profiles for up to 20 tickers in one call — preferred over `jintel_enrich` when analyzing multiple assets (server batches and deduplicates upstream calls). **Always specify `fields`** when batching; otherwise the response can exceed 100k tokens. For a single sub-graph across many tickers, the dedicated tool is fine to call per-ticker.",
       inputSchema: {
         type: "object",
         properties: {
@@ -577,7 +577,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_sanctions_screen",
       description:
-        "Screen a person or organization name against sanctions lists. Returns matches with severity, match type, and justification. Use for KYC, counterparty checks, or regulatory risk assessment.",
+        "Screen a person or organization NAME (not ticker) against global sanctions lists for KYC, counterparty due-diligence, or regulatory risk. Returns array of matches with `{ listName, matchedName, score, sdnType, programs }`. For sanctions ATTACHED to a known company entity, use `jintel_regulatory` (entity-level) or `jintel_risk_signals` with `types: ['SANCTIONS']` instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -607,7 +607,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_price_history",
       description:
-        "Fetch OHLCV candle history for up to 20 tickers. Use for backtesting, technical analysis, charting, or volatility studies. Default range is 1y with 1d candles.",
+        "Fetch OHLCV candle history for up to 20 tickers — backtesting, technical analysis, charting, volatility studies. Returns one `TickerPriceHistory` per ticker with an array of `{ date, open, high, low, close, volume }` candles. Default range `1y`, interval `1d`. For a real-time current price use `jintel_quote`; for technical indicators derived from history use `jintel_technicals`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -647,7 +647,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_short_interest",
       description:
-        "Fetch short interest reports for a US equity ticker. Returns bi-monthly short interest share counts, days-to-cover, and revision history. Use for crowdedness / squeeze analysis.",
+        "Fetch bi-monthly short-interest reports for a US equity ticker — share counts, days-to-cover, revision history. Use for crowdedness / squeeze analysis. Returns an array sorted newest first. **US equities only** — non-US tickers return an empty array.",
       inputSchema: {
         type: "object",
         properties: {
@@ -672,7 +672,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_campaign_finance",
       description:
-        "Fetch US campaign finance data (PACs, candidate committees) matching a name. Use for political-exposure checks, donor research, or ESG-adjacent due diligence.",
+        "Fetch US FEC campaign-finance committees (PACs, candidate committees) matching a NAME — political-exposure checks, donor research, ESG-adjacent due diligence. Returns array of committees with `{ name, party, totalRaised, cycle, … }`. **US only.** For campaign finance attached to a specific corporate entity, fetch via `jintel_regulatory` instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -702,7 +702,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_institutional_holdings",
       description:
-        "Fetch institutional 13F holdings for a filer by CIK. Returns positions from the latest 13F-HR filing. Use for tracking what funds own, position sizing, and whale-watching.",
+        'Fetch a 13F filer\'s institutional holdings by CIK — i.e. "what does this fund/firm own." Use for fund-tracking, whale-watching, position-sizing analysis. Input is the FILER\'s CIK (e.g. `0001067983` for Berkshire), not a ticker. Returns positions from the latest 13F-HR filing. For "who owns THIS company" reverse the perspective and use `jintel_top_holders`.',
       inputSchema: {
         type: "object",
         properties: {
@@ -780,7 +780,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_fama_french",
       description:
-        "Fetch Fama-French factor returns (market-minus-risk-free, SMB, HML, RMW, CMA, momentum). Use for factor-based risk attribution, academic finance research, or portfolio analysis.",
+        "Fetch Fama-French factor returns time series — Mkt-RF, SMB, HML, RMW, CMA. Use for factor-based risk attribution, academic finance research, portfolio analysis. THREE_FACTOR = Mkt-RF + SMB + HML; FIVE_FACTOR adds RMW + CMA. Returns array of `{ date, mktRf, smb, hml, rmw?, cma?, rf }`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -812,7 +812,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_market_status",
       description:
-        "Check whether US equity markets are currently open, and get the next open/close times. Use to decide whether to trust intraday prices or to schedule queries.",
+        "Check whether US equity markets are currently open and get the next open/close times. Use to decide whether to trust intraday prices or to schedule queries. Returns `{ isOpen, nextOpen, nextClose, session }`. **US markets only.**",
       inputSchema: {
         type: "object",
         properties: {},
@@ -828,7 +828,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_news",
       description:
-        "Recent news articles for an entity. Sorted newest first. Filter by source, date range, or sentiment score (-1 to +1).",
+        "Recent news articles MENTIONING an entity — wire stories, press releases, business reporting. Returns `{ id, tickers, data: NewsArticle[] }` newest first; each article has `{ title, url, publishedAt, source, summary, sentimentScore }`. Filter by `sources`, date range, or sentiment range to narrow large feeds. For longer-form analyst notes / deep-dive content use `jintel_research` instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -903,7 +903,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_research",
       description:
-        "Web research articles for an entity (analyst notes, deep dives). Sorted newest first.",
+        "Long-form research content for an entity — analyst notes, sell-side reports, in-depth web articles. Returns `{ id, tickers, data: ResearchResult[] }` newest first. Use this when you want considered analysis rather than headline news (for which use `jintel_news`).",
       inputSchema: {
         type: "object",
         properties: {
@@ -937,7 +937,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_sentiment",
       description:
-        "Aggregated social sentiment for an entity — Reddit / Twitter mentions, upvotes, and 24h momentum. Scalar snapshot, no date filter.",
+        "Aggregated social-sentiment SUMMARY for an entity — total Reddit / Twitter mention counts, upvotes, 24h momentum delta. Scalar snapshot (no date filter). Returns `{ id, tickers, data: SocialSentiment }` with overall scores. For the raw underlying posts and comments, use `jintel_social`.",
       inputSchema: {
         type: "object",
         properties: { ticker: TICKER_SCHEMA },
@@ -959,7 +959,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_social",
       description:
-        "Raw social signals for an entity — recent Reddit posts, Twitter mentions, top comments. Use for qualitative retail-sentiment color.",
+        "Raw social-media signal feed for an entity — recent Reddit posts, Reddit comments, Twitter mentions, with content text. Returns `{ id, tickers, data: Social }`. Use for qualitative retail-sentiment color. For an aggregated sentiment SCORE rather than raw posts, use `jintel_sentiment`.",
       inputSchema: {
         type: "object",
         properties: { ticker: TICKER_SCHEMA },
@@ -981,7 +981,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_discussions",
       description:
-        "Hacker News stories mentioning an entity. Filter by points / comments / date.",
+        "Hacker News stories that mention an entity. Returns `{ id, tickers, data: HackerNewsStory[] }` newest first. Filter by minimum `points` / `comments` to skip low-engagement noise. Niche but high-signal for tech companies and crypto.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1035,7 +1035,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_predictions",
       description:
-        "Polymarket / Kalshi prediction-market events referencing an entity. Filter by volume, liquidity, or open status.",
+        "Polymarket / Kalshi prediction-market events that reference an entity — earnings beats, CEO succession, M&A, regulatory outcomes. Returns `{ id, tickers, data: PredictionMarket[] }`. Filter `minVolume24hr` or `onlyOpen=true` to skip illiquid / resolved markets.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1113,7 +1113,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_risk_signals",
       description:
-        "Risk signals attached to an entity — sanctions, litigation, regulatory actions, adverse media, PEP. Filter by type, severity, or date.",
+        "Risk signals attached to an entity — sanctions, litigation, regulatory actions, adverse media, PEP. Filter by `types` and `severities` for triage workflows. Returns `{ id, tickers, data: RiskSignal[] }`. For deep-dive on a specific risk category use the dedicated tool: `jintel_litigation`, `jintel_fda_events`, etc. For a NAME-based sanctions screen (no entity required) use `jintel_sanctions_screen`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1174,7 +1174,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_regulatory",
       description:
-        "Regulatory data for an entity — SEC filings, sanctions matches, campaign finance. Pass `filingTypes` to narrow filings; default returns all.",
+        "Regulatory bundle for an entity in one call — SEC filings + sanctions matches + campaign-finance. Returns `{ id, tickers, data: RegulatoryData }`. Use this when you want regulatory context broadly. For ONLY periodic 10-K/10-Q/8-K filings (with summaries) use `jintel_periodic_filings`. For only sanctions/litigation as risk signals use `jintel_risk_signals`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1224,7 +1224,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_periodic_filings",
       description:
-        "Quarterly / annual SEC filings (10-K, 10-Q, 8-K) for an entity, with summary metadata and links. Sorted newest first.",
+        "Quarterly / annual SEC filings (10-K, 10-Q, 8-K) for an entity, with summary metadata and direct links to filings on SEC.gov. Returns `{ id, tickers, data: PeriodicFiling[] }` newest first. Use for deep-dive on filing history; for the broader regulatory picture (filings + sanctions + campaign-finance) use `jintel_regulatory`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1260,7 +1260,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_technicals",
       description:
-        "Technical indicators for a ticker. Returns RSI, MACD, Bollinger Bands (+ width), EMA (10/50/200), SMA (20/50/200), 52-WMA, ATR, VWMA, VWAP, MFI, ADX, Stochastic, OBV, Parabolic SAR, Williams %R, and crossover flags. Interpretation: RSI > 70 overbought / < 30 oversold; MACD histogram > 0 bullish; price > SMA(200) long-term uptrend; ADX > 25 strong trend; ATR rising = increasing volatility.",
+        "Technical indicators snapshot for a ticker — RSI, MACD, Bollinger Bands (+ width), EMA (10/50/200), SMA (20/50/200), 52-WMA, ATR, VWMA, VWAP, MFI, ADX, Stochastic, OBV, Parabolic SAR, Williams %R, plus crossover flags. Returns `{ id, tickers, data: TechnicalIndicators }`. Quick interpretation: RSI > 70 overbought / < 30 oversold; MACD histogram > 0 bullish; price > SMA(200) long-term uptrend; ADX > 25 strong trend; ATR rising = increasing volatility. For raw price candles use `jintel_price_history`.",
       inputSchema: {
         type: "object",
         properties: { ticker: TICKER_SCHEMA },
@@ -1282,7 +1282,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_derivatives",
       description:
-        "Derivatives data for an entity — futures curve and options chain. Best for crypto and major equities. Pass `optionType`, `strikeMin`/`strikeMax`, `minVolume`, or `minOpenInterest` to narrow the options chain (chains can exceed 5 000 rows otherwise).",
+        "Derivatives surface for an entity — futures curve and options chain. Best for crypto and major equities. Returns `{ id, tickers, data: DerivativesData }`. **Always narrow the options chain** with `optionType`, `strikeMin`/`strikeMax`, `minVolume`, or `minOpenInterest` — full chains exceed 5,000 rows and consume significant tokens. Filter `futuresFilter` parameters narrow the futures curve independently.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1453,7 +1453,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_ownership",
       description:
-        "Ownership breakdown for an entity — institutional %, insider %, retail %, float, and shares outstanding. Scalar snapshot.",
+        "Ownership BREAKDOWN for an entity — institutional %, insider %, retail %, float, shares outstanding. Scalar snapshot. Returns `{ id, tickers, data: OwnershipBreakdown }`. For the actual list of top holders use `jintel_top_holders`. For raw 13F filings by a specific fund/CIK use `jintel_institutional_holdings`.",
       inputSchema: {
         type: "object",
         properties: { ticker: TICKER_SCHEMA },
@@ -1475,7 +1475,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_top_holders",
       description:
-        "Top institutional holders of an entity (by shares held). Filter by minimum position value or paginate with offset.",
+        'Top institutional HOLDERS of an entity, ranked by shares held. Returns `{ id, tickers, data: TopHolder[] }`. Use to answer "who owns this company." For "what does this fund own" reverse the perspective and use `jintel_institutional_holdings` with the fund\'s CIK. For aggregate ownership %, use `jintel_ownership`.',
       inputSchema: {
         type: "object",
         properties: {
@@ -1524,7 +1524,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_insider_trades",
       description:
-        "Insider Form 4 transactions for an entity — purchases, sales, option exercises by officers, directors, and 10% owners. Filter by transaction code, role, or 10b5-1 plan status.",
+        "Insider Form 4 transactions for an entity — purchases, sales, option exercises by officers, directors, 10% owners. Returns `{ id, tickers, data: InsiderTrade[] }` newest first. Filter by role (`isOfficer` / `isDirector`), 10b5-1 plan status, transaction code, or `minValue`. Use `acquiredDisposed: 'ACQUIRED'` to focus on insider buying signals (typically more meaningful than selling).",
       inputSchema: {
         type: "object",
         properties: {
@@ -1640,7 +1640,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_financials",
       description:
-        "Income statement, balance sheet, and cash flow statement for an entity. Pass `periodTypes` (e.g. ['12M'] for annual only, ['3M'] for quarterly only) to filter periods.",
+        "Income statement, balance sheet, and cash flow statement for an entity. Returns `{ id, tickers, data: FinancialStatements }` containing three parallel arrays — `income`, `balanceSheet`, `cashFlow` — sorted newest first. Pass `periodTypes: ['12M']` for annual only, `['3M']` for quarterly only. For revenue broken out by segment / geography use `jintel_segmented_revenue`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1694,7 +1694,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_executives",
       description:
-        "Key executives and named officers for an entity, with annual compensation. Filter by minimum pay or sort order.",
+        "Key executives and named officers for an entity, with annual compensation. Returns `{ id, tickers, data: KeyExecutive[] }`. Sort `PAY_DESC` to surface highest-paid execs; filter by `minPay` for compensation-threshold analysis. Best signal for governance / ESG / pay-ratio research.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1736,7 +1736,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_earnings_calendar",
       description:
-        "Earnings calendar / report history for an entity — past and upcoming. Each entry includes EPS estimate vs. actual, revenue, and surprise. Sorted newest first by default.",
+        "Earnings REPORT history for an entity — past actuals + upcoming dates. Each entry has EPS estimate, EPS actual, revenue estimate, revenue actual, surprise %. Returns `{ id, tickers, data: EarningsReport[] }`. For the prepared press releases (with summaries / links) accompanying these reports, use `jintel_earnings_press_releases`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1772,7 +1772,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_earnings_press_releases",
       description:
-        "Earnings press releases (with summaries and links) for an entity. Sorted newest first.",
+        "Earnings press releases for an entity — formal release text, summaries, links. Returns `{ id, tickers, data: EarningsPressRelease[] }` newest first. Pair with `jintel_earnings_calendar` (which has the structured EPS / revenue numbers) for full earnings context.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1806,7 +1806,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_segmented_revenue",
       description:
-        "Revenue breakdown by product, segment, geography, or customer for an entity. Use to understand business mix and concentration.",
+        "Revenue BROKEN OUT by product, segment, geography, or customer for an entity. Returns `{ id, tickers, data: SegmentRevenue[] }`. Use to understand business mix and concentration. Filter `dimensions` to focus on one breakdown axis. For aggregate top-line revenue use `jintel_financials` instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1866,7 +1866,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_analyst_consensus",
       description:
-        "Wall Street analyst consensus for an entity — recommendation, price target, EPS / revenue estimates, number of analysts. Scalar snapshot.",
+        "Wall Street analyst consensus snapshot for an entity — current recommendation distribution (BUY/HOLD/SELL counts), consensus price target, EPS / revenue estimates, number of analysts. Returns `{ id, tickers, data: AnalystConsensus }`. Scalar — no date filter.",
       inputSchema: {
         type: "object",
         properties: { ticker: TICKER_SCHEMA },
@@ -1890,7 +1890,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_clinical_trials",
       description:
-        "Clinical trial registrations referencing an entity (sponsor or drug). Filter by phase or status. Sorted newest first.",
+        "Clinical trial registrations referencing an entity (sponsor or drug). Returns `{ id, tickers, data: ClinicalTrial[] }` newest first. Filter `phase` (case-insensitive substring, e.g. 'PHASE3') and `status` (e.g. 'RECRUITING', 'COMPLETED'). **Most relevant for biotech / pharma tickers** — other sectors typically return empty.",
       inputSchema: {
         type: "object",
         properties: {
@@ -1947,7 +1947,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_fda_events",
       description:
-        "FDA adverse events and recalls referencing an entity. Filter by event type (DRUG_ADVERSE / DEVICE_ADVERSE / DRUG_RECALL) or severity (e.g. 'CLASS I').",
+        "FDA adverse-event reports and recalls referencing an entity. Returns `{ id, tickers, data: FdaEvent[] }`. `types`: DRUG_ADVERSE / DEVICE_ADVERSE / DRUG_RECALL. `severity`: 'CLASS I/II/III' for recalls (CLASS I = highest risk). **Most relevant for pharma / med-device tickers** — other sectors typically return empty.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2007,7 +2007,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_litigation",
       description:
-        "Active and historical lawsuits involving an entity. Filter by court, nature of suit, or active status.",
+        "Active and historical lawsuits involving an entity — court, nature of suit, dates, parties. Returns `{ id, tickers, data: LitigationCase[] }`. Filter `onlyActive=true` for pending cases only; `natureOfSuit` substring match (e.g. 'PATENT', 'ANTITRUST', 'SECURITIES'); `court` for jurisdiction (e.g. 'N.D. CAL').",
       inputSchema: {
         type: "object",
         properties: {
@@ -2082,7 +2082,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_government_contracts",
       description:
-        "US government contracts awarded to an entity. Filter by minimum dollar amount or paginate.",
+        "US federal government contracts awarded to an entity — agency, amount, award date, contract description. Returns `{ id, tickers, data: GovernmentContract[] }`. Use `minAmount` to skip small awards. **Most relevant for defense / aerospace / federal-services tickers.**",
       inputSchema: {
         type: "object",
         properties: {
@@ -2137,7 +2137,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_gdp",
       description:
-        "GDP time series for a country. Pass `type` to choose REAL (inflation-adjusted), NOMINAL (current dollars), or FORECAST (forward estimates). Filter the historical observations with `since` / `until` / `limit`.",
+        "GDP time series for a country. `type`: REAL (inflation-adjusted, default), NOMINAL (current dollars), or FORECAST (forward estimates). Returns array of `{ date, country, value }`. Use ISO codes ('US') or country names ('United States'). For other macro indicators (unemployment, money supply, yields) use `jintel_macro_series` with FRED-style IDs.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2175,7 +2175,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_inflation",
       description:
-        "CPI / inflation time series for a country. Filter the observations with `since` / `until` / `limit`.",
+        "CPI / inflation time series for a country. Returns array of `{ date, country, value }`. For headline US CPI specifically, `jintel_macro_series` with `seriesId='CPIAUCSL'` is equivalent and lets you batch across multiple inflation series.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2205,7 +2205,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_interest_rates",
       description:
-        "Policy interest rates time series for a country (e.g. Fed Funds for US). Filter the observations with `since` / `until` / `limit`.",
+        "Policy interest rates time series for a country — Fed Funds (US), ECB rate (EU), BoE rate (UK), etc. Returns array of `{ date, country, value }`. For a specific FRED series like `DGS10` (10-year Treasury) or `T10Y2Y` (yield curve) use `jintel_macro_series` instead.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2235,7 +2235,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_sp500_multiples",
       description:
-        "S&P 500 valuation multiples time series — PE, Shiller PE (CAPE), dividend yield, earnings yield. Use for valuation-cycle analysis.",
+        "S&P 500 valuation multiples time series — `PE_MONTH` (current PE), `SHILLER_PE_MONTH` (CAPE / cyclically-adjusted), `DIVIDEND_YIELD_MONTH`, `EARNINGS_YIELD_MONTH`. Returns array of `{ date, name, value }`. Use for valuation-cycle / regime analysis. For individual-stock multiples, derive from `jintel_financials`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2267,7 +2267,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_macro_series",
       description:
-        "Generic US macro time series by series ID (FRED-style codes — e.g. GDPC1, UNRATE, CPIAUCSL, T10Y2Y, DGS10). Returns metadata + observations. Pass an array via `seriesIds` to fetch multiple series in one call.",
+        "Generic FRED-style US macro time series by series ID — UNRATE (unemployment), CPIAUCSL (headline CPI), GDPC1 (real GDP), DGS10 (10y Treasury), T10Y2Y (yield curve), M2SL (money supply), and many more. Use `seriesId` for one series, `seriesIds` (array) to batch up to ~20. Returns series metadata + observations. Filter observations with `since` / `until` / `limit`.",
       inputSchema: {
         type: "object",
         properties: {
@@ -2313,7 +2313,7 @@ export function buildTools(client: JintelClient): ToolDefinition[] {
     {
       name: "jintel_query",
       description:
-        "Compact dispatcher — single tool that fetches any per-entity sub-graph by `kind`. Use when you want to keep your agent's tool list short. For filtered results (date ranges, types, severities), prefer the dedicated tool (jintel_news, jintel_executives, etc.) — this aggregator only supports `since` / `until` / `limit` on array sub-graphs.",
+        "Compact aggregator — a SINGLE tool that fetches any per-entity sub-graph by `kind` (one of 27 names: news / risk / executives / financials / clinical_trials / …). Use when you want to keep your agent's tool list short to save tokens. Returns the same `{ id, tickers, data }` shape as the dedicated tool. **For richer filters** (severities, transaction codes, FDA event types, segment dimensions) use the dedicated `jintel_*` tool — this aggregator only supports `since` / `until` / `limit` / `sort`.",
       inputSchema: {
         type: "object",
         properties: {

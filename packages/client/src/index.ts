@@ -6,8 +6,12 @@ export {
   JintelValidationError,
   JINTEL_API_URL,
   validateQuery,
-} from './client.js';
-export type { JintelResult, GraphQLRequestResult, ValidationResult } from './client.js';
+} from "./client.js";
+export type {
+  JintelResult,
+  GraphQLRequestResult,
+  ValidationResult,
+} from "./client.js";
 
 export {
   // Enums
@@ -102,7 +106,7 @@ export {
   GraphQLErrorSchema,
   GraphQLResponseSchema,
   ALL_ENRICHMENT_FIELDS,
-} from './types.js';
+} from "./types.js";
 
 export type {
   EntityType,
@@ -195,8 +199,11 @@ export type {
   FdaEventFilterOptions,
   LitigationFilterOptions,
   GovernmentContractFilterOptions,
+  DiscussionsFilterOptions,
+  InstitutionalHoldingsFilterOptions,
+  PredictionMarketFilterOptions,
   EnrichOptions,
-} from './types.js';
+} from "./types.js";
 
 export {
   // Query strings
@@ -251,4 +258,4 @@ export {
   FDA_EVENTS_FIELDS,
   LITIGATION_FIELDS,
   GOVERNMENT_CONTRACTS_FIELDS,
-} from './queries.js';
+} from "./queries.js";

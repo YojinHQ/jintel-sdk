@@ -873,9 +873,9 @@ export const MARKET_STATUS = `
     }
   }`;
 
-export const FRED = `
-  query Fred($seriesId: String!, $filter: ArrayFilterInput) {
-    fred(seriesId: $seriesId) {
+export const MACRO_SERIES = `
+  query MacroSeries($seriesId: String!, $filter: ArrayFilterInput) {
+    macroSeries(seriesId: $seriesId) {
       id
       title
       units
@@ -888,9 +888,9 @@ export const FRED = `
     }
   }`;
 
-export const FRED_BATCH = `
-  query FredBatch($seriesIds: [String!]!, $filter: ArrayFilterInput) {
-    fredBatch(seriesIds: $seriesIds) {
+export const MACRO_SERIES_BATCH = `
+  query MacroSeriesBatch($seriesIds: [String!]!, $filter: ArrayFilterInput) {
+    macroSeriesBatch(seriesIds: $seriesIds) {
       id
       title
       units

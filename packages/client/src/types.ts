@@ -917,7 +917,7 @@ export const FdaEventSchema = z.object({
 export type FdaEvent = z.infer<typeof FdaEventSchema>;
 
 export const LitigationCaseSchema = z.object({
-  /** CourtListener docket / opinion cluster id. */
+  /** Docket / opinion cluster id. */
   id: z.string(),
   /** Case name, e.g. 'United States v. Foo Corp'. */
   caseName: z.string(),
@@ -931,7 +931,7 @@ export const LitigationCaseSchema = z.object({
   docketNumber: z.string().nullable().optional(),
   /** Nature of suit classification. */
   natureOfSuit: z.string().nullable().optional(),
-  /** Fully-qualified CourtListener URL. */
+  /** Fully-qualified docket URL. */
   absoluteUrl: z.string().nullable().optional(),
 });
 export type LitigationCase = z.infer<typeof LitigationCaseSchema>;
@@ -939,11 +939,11 @@ export type LitigationCase = z.infer<typeof LitigationCaseSchema>;
 export const GovernmentContractSchema = z.object({
   /** Award ID (PIID or equivalent). */
   awardId: z.string(),
-  /** Recipient name as reported by USASpending. */
+  /** Recipient name as reported. */
   recipient: z.string(),
   /** Action date (YYYY-MM-DD). */
   actionDate: z.string().nullable().optional(),
-  /** Award amount in USD. Null when USASpending does not report a value. */
+  /** Award amount in USD. Null when the upstream record does not report a value. */
   amount: z.number().nullable().optional(),
   /** Awarding agency. */
   agency: z.string().nullable().optional(),
@@ -1031,7 +1031,7 @@ export type ConcentrationProfile = z.infer<typeof ConcentrationProfileSchema>;
 // ── Relationships (unified typed-edge graph) ──────────────────────────────
 
 export const RelationshipSourceSchema = z.object({
-  /** Jintel connector name (e.g. 'sec-segments', 'usaspending'). */
+  /** Source category for this edge — one of: 'corporate-filing', 'government-award', 'institutional-holding', 'litigation', 'clinical-trial'. */
   connector: z.string(),
   /** URL to the source record. Null when the connector only exposes IDs. */
   url: z.string().nullable().optional(),
@@ -1096,16 +1096,16 @@ export const ParentCompanySchema = z.object({
 });
 export type ParentCompany = z.infer<typeof ParentCompanySchema>;
 
-export const FredObservationSchema = z.object({
+export const MacroObservationSchema = z.object({
   /** Observation date (YYYY-MM-DD). */
   date: z.string(),
-  /** Observed value. Null when FRED reports missing data. */
+  /** Observed value. Null when the upstream reports missing data. */
   value: z.number().nullable().optional(),
 });
-export type FredObservation = z.infer<typeof FredObservationSchema>;
+export type MacroObservation = z.infer<typeof MacroObservationSchema>;
 
-export const FredSeriesSchema = z.object({
-  /** FRED series identifier (e.g. GDPC1, UNRATE). */
+export const MacroSeriesSchema = z.object({
+  /** Series identifier (e.g. GDPC1, UNRATE). */
   id: z.string(),
   /** Series title. */
   title: z.string().nullable().optional(),
@@ -1113,12 +1113,12 @@ export const FredSeriesSchema = z.object({
   units: z.string().nullable().optional(),
   /** Observation frequency ('Annual', 'Quarterly', 'Monthly', 'Daily'). */
   frequency: z.string().nullable().optional(),
-  /** Last update timestamp from FRED. */
+  /** Last update timestamp. */
   lastUpdated: z.string().nullable().optional(),
   /** Time-series observations, newest first by default. */
-  observations: z.array(FredObservationSchema).optional(),
+  observations: z.array(MacroObservationSchema).optional(),
 });
-export type FredSeries = z.infer<typeof FredSeriesSchema>;
+export type MacroSeries = z.infer<typeof MacroSeriesSchema>;
 
 // ── Entity (must come after all sub-graph schemas) ────────────────────────
 
@@ -1289,7 +1289,7 @@ export interface OptionsChainFilterOptions {
 
 /** Filter for `Entity.news` (NewsFilterInput). */
 export interface NewsFilterOptions extends ArraySubGraphOptions {
-  /** Restrict to one or more source names (case-insensitive exact match, e.g. `['finnhub', 'CNBC']`). */
+  /** Restrict to one or more source names (case-insensitive exact match). */
   sources?: string[];
   /** Only include articles with sentimentScore >= this value (-1 to +1). */
   minSentiment?: number;
@@ -1351,11 +1351,11 @@ export interface FinancialStatementFilterOptions extends ArraySubGraphOptions {
   periodTypes?: string[];
 }
 
-/** Filter for OFAC sanctions matches (`RegulatoryData.sanctions` and root `sanctionsScreen`). */
+/** Filter for sanctions matches (`RegulatoryData.sanctions` and root `sanctionsScreen`). */
 export interface SanctionsFilterOptions {
   /** Only return matches with score >= this value (0-100). */
   minScore?: number;
-  /** Restrict to one or more SDN list names (e.g. `['SDN']`). */
+  /** Restrict to one or more sanctions list names (e.g. `['SDN']`). */
   listNames?: string[];
   /** Restrict to matches attached to any of these sanctions programs (e.g. `['SDGT', 'IRAN']`). */
   programs?: string[];

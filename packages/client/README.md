@@ -21,6 +21,35 @@ const aapl = await jintel.enrichEntity('AAPL', ['market', 'news', 'analyst']);
 
 All public methods return `JintelResult<T>` — a discriminated union `{ success: true, data } | { success: false, error }` — so errors never throw. Use `jintel.request(query, variables)` for arbitrary GraphQL.
 
+## Pay-per-query for agents (x402)
+
+Autonomous agents can pay per GraphQL request in USDC on Base via [x402](https://x402.org/) — no signup, no API key, no prefunded balance. Pass an x402-aware `fetch` to the client and every request is signed by the agent's wallet:
+
+```ts
+import { wrapFetchWithPayment } from 'x402-fetch';
+import { createWalletClient, http } from 'viem';
+import { base } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
+import { JintelClient } from '@yojinhq/jintel-client';
+
+const wallet = createWalletClient({
+  account: privateKeyToAccount(process.env.AGENT_PK as `0x${string}`),
+  chain: base,
+  transport: http(),
+});
+
+// 1 USDC per-request cap (atomic units; USDC has 6 decimals).
+const payFetch = wrapFetchWithPayment(fetch, wallet, 1_000_000n);
+
+const jintel = new JintelClient({ fetch: payFetch });
+
+const quotes = await jintel.quotes(['AAPL']);
+```
+
+The payer wallet recovered from the EIP-3009 signature auto-identifies the caller — Jintel doesn't need an API key in this mode and the client skips the `Authorization` header so the per-request x402 gate fires. The cheapest queries (e.g. `quotes(["AAPL"])`) cost a fraction of a cent; nested fan-outs price proportionally. See the [Agents & x402 docs](https://docs.jintel.ai/agents) for the full flow.
+
+Both auth modes are supported — pass `apiKey` only (plan billing), `fetch` only (per-query x402), or both (Bearer takes precedence; useful when an agent also has an API key).
+
 ## Filtering array sub-graphs
 
 Most array fields accept an optional `filter` argument. The generic `ArrayFilterInput` covers date range + limit + sort; many sub-graphs have domain-specific inputs with extra dimensions.

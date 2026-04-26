@@ -271,18 +271,29 @@ export const JINTEL_API_URL = 'https://api.jintel.ai/api';
 
 export class JintelClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey?: string;
+  private readonly fetchImpl: typeof fetch;
   private readonly timeout: number;
   private readonly debug: boolean;
   private readonly responseCache?: ResponseCache;
   private readonly defaultAsOf?: string;
 
-  constructor(config: JintelClientConfig) {
-    if (!config.apiKey) {
-      throw new JintelAuthError('apiKey is required and must not be empty');
+  constructor(config: JintelClientConfig = {}) {
+    // Two supported modes:
+    //   1. `apiKey` — Bearer auth against a Jintel plan (humans, backends).
+    //   2. `fetch` — caller-supplied fetch (typically `wrapFetchWithPayment`
+    //      from x402-fetch) that signs each request with a wallet, paying
+    //      per-query in USDC on Base. No signup, no API key.
+    // At least one must be provided. Both can coexist (Bearer takes precedence
+    // — useful when a wallet-owning org also has an API key).
+    if (!config.apiKey && !config.fetch) {
+      throw new JintelAuthError(
+        'JintelClient needs either `apiKey` (plan auth) or `fetch` (e.g. wrapFetchWithPayment from x402-fetch for per-query x402 auth).',
+      );
     }
     this.baseUrl = config.baseUrl ?? JINTEL_API_URL;
     this.apiKey = config.apiKey;
+    this.fetchImpl = config.fetch ?? fetch;
     this.timeout = config.timeout ?? 30_000;
     this.debug = config.debug ?? false;
     this.defaultAsOf = config.asOf;
@@ -301,15 +312,20 @@ export class JintelClient {
   private async execute(query: string, variables?: Record<string, unknown>): Promise<GraphQLResponse> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${this.apiKey}`,
     };
+    // Bearer auth is opt-in: when running in x402 mode, the caller-supplied
+    // fetch attaches `PAYMENT-SIGNATURE` itself and we must NOT send a Bearer
+    // (a phantom Authorization would short-circuit the per-query gate).
+    if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    }
     if (this.debug) {
       headers['X-Debug'] = 'true';
     }
 
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl}/graphql`, {
+      response = await this.fetchImpl(`${this.baseUrl}/graphql`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ query, variables }),

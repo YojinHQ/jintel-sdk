@@ -95,6 +95,55 @@ describe('JintelClient asOf forwarding', () => {
   });
 });
 
+describe('Auth modes', () => {
+  it('throws when neither apiKey nor fetch is provided', () => {
+    expect(() => new JintelClient({})).toThrow(/apiKey/);
+    expect(() => new JintelClient()).toThrow(/apiKey/);
+  });
+
+  it('sends Authorization: Bearer when apiKey is configured', async () => {
+    const seen: { headers?: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+      seen.push({ headers: init?.headers as Record<string, string> | undefined });
+      return stubResponse({ data: { quotes: [] } });
+    });
+    const client = new JintelClient({ apiKey: 'jk_live_test', baseUrl: 'http://x/api' });
+    await client.quotes(['AAPL']);
+    expect(seen[0].headers?.Authorization).toBe('Bearer jk_live_test');
+  });
+
+  it('uses caller-supplied fetch when in x402 mode (no apiKey, no Authorization header)', async () => {
+    const probes: { url: string; init?: RequestInit }[] = [];
+    const customFetch: typeof fetch = async (url, init) => {
+      probes.push({ url: String(url), init });
+      return stubResponse({ data: { quotes: [] } });
+    };
+    const client = new JintelClient({ fetch: customFetch, baseUrl: 'http://x/api' });
+    await client.quotes(['AAPL']);
+    expect(probes).toHaveLength(1);
+    const headers = probes[0].init?.headers as Record<string, string> | undefined;
+    expect(headers?.Authorization).toBeUndefined();
+    // The x402-aware fetch wrapper would attach PAYMENT-SIGNATURE itself —
+    // we just verify the client doesn't clobber it.
+  });
+
+  it('prefers apiKey when both apiKey and custom fetch are supplied', async () => {
+    const probes: { init?: RequestInit }[] = [];
+    const customFetch: typeof fetch = async (_url, init) => {
+      probes.push({ init });
+      return stubResponse({ data: { quotes: [] } });
+    };
+    const client = new JintelClient({
+      apiKey: 'jk_live_test',
+      fetch: customFetch,
+      baseUrl: 'http://x/api',
+    });
+    await client.quotes(['AAPL']);
+    const headers = probes[0].init?.headers as Record<string, string> | undefined;
+    expect(headers?.Authorization).toBe('Bearer jk_live_test');
+  });
+});
+
 describe('Response cache isolates asOf buckets', () => {
   it('caches separately by asOf — live request and PIT request never share a slot', async () => {
     const client = new JintelClient({ apiKey: 'test', baseUrl: 'http://x/api', cache: true });

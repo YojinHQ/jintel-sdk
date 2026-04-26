@@ -1193,7 +1193,26 @@ export interface JintelClientCacheConfig {
 export interface JintelClientConfig {
   /** API base URL. Defaults to https://api.jintel.ai/api */
   baseUrl?: string;
-  apiKey: string;
+  /**
+   * Bearer API key (`jk_live_…`) issued via signup, Google OAuth, or SIWX.
+   * Optional when {@link fetch} is provided (x402 pay-per-query mode); the
+   * client throws if neither is set.
+   */
+  apiKey?: string;
+  /**
+   * Custom `fetch` implementation. When set, replaces the global `fetch`
+   * for every request the client makes — typically used to wire up x402
+   * pay-per-query flows. Pass the result of `wrapFetchWithPayment(fetch,
+   * wallet, maxAtomicValue)` from
+   * [`x402-fetch`](https://www.npmjs.com/package/x402-fetch) to have each
+   * GraphQL request signed and settled in USDC on Base. The client skips
+   * the `Authorization` header in this mode, so the per-request x402 gate
+   * fires and the payer wallet auto-identifies the caller.
+   *
+   * Both `apiKey` and `fetch` can coexist — the SDK still sends the Bearer
+   * (the GraphQL endpoint accepts it instead of charging x402).
+   */
+  fetch?: typeof fetch;
   timeout?: number;
   debug?: boolean;
   /**

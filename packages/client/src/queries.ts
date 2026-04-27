@@ -285,100 +285,86 @@ export const DISCUSSIONS_FIELDS = `
     topComments { author text points }
   }`;
 
+const FINANCIAL_STATEMENT_FIELDS = `
+      periodEnding
+      periodType
+
+      totalRevenue
+      costOfRevenue
+      grossProfit
+      researchAndDevelopment
+      sellingGeneralAndAdmin
+      operatingExpense
+      operatingIncome
+      ebit
+      ebitda
+      interestExpense
+      interestIncome
+      otherIncomeExpense
+      pretaxIncome
+      taxProvision
+      netIncome
+      basicEps
+      dilutedEps
+
+      totalAssets
+      currentAssets
+      cashAndEquivalents
+      accountsReceivable
+      inventory
+      otherCurrentAssets
+      netPPE
+      grossPPE
+      accumulatedDepreciation
+      goodwill
+      otherIntangibleAssets
+      longTermInvestments
+      otherNonCurrentAssets
+      netTangibleAssets
+
+      totalLiabilities
+      currentLiabilities
+      accountsPayable
+      currentDebt
+      otherCurrentLiabilities
+      longTermDebt
+      otherNonCurrentLiabilities
+      totalDebt
+      netDebt
+      totalEquity
+      commonStockEquity
+      preferredStockEquity
+      retainedEarnings
+      treasurySharesNumber
+      treasuryStockValue
+      minorityInterest
+      workingCapital
+      investedCapital
+
+      operatingCashFlow
+      investingCashFlow
+      financingCashFlow
+      freeCashFlow
+      capitalExpenditure
+      depreciationAmortization
+      changeInWorkingCapital
+      stockBasedCompensation
+      dividendsPaid
+      repurchaseOfCapitalStock
+      issuanceOfCapitalStock
+      repaymentOfDebt
+      issuanceOfDebt
+      netBusinessPurchaseAndSale
+      beginningCashPosition
+      endingCashPosition`;
+
 export const FINANCIALS_FIELDS = `
   financials {
-    income {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    income {${FINANCIAL_STATEMENT_FIELDS}
     }
-    balanceSheet {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    balanceSheet {${FINANCIAL_STATEMENT_FIELDS}
     }
-    cashFlow {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    cashFlow {${FINANCIAL_STATEMENT_FIELDS}
     }
   }`;
 

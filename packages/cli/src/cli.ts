@@ -62,10 +62,13 @@ Agent discovery:
   list-tools                       Dump all commands as JSON for agent tool lists
 
 Common flags on every command:
-  --api-key <key>    API key (else reads JINTEL_API_KEY or ~/.jintel/config.json)
-  --base-url <url>   Override API base URL (else uses https://api.jintel.ai/api)
-  --json             Output raw JSON instead of a table (where applicable)
-  --help, -h         Show help for the command
+  --api-key <key>      API key (else reads JINTEL_API_KEY or ~/.jintel/config.json)
+  --wallet-key <hex>   Private key for x402 wallet mode — pay per query in USDC on Base
+                       (else reads JINTEL_WALLET_PRIVATE_KEY; capped by JINTEL_X402_MAX_VALUE,
+                       atomic units, default 1_000_000 = $1)
+  --base-url <url>     Override API base URL (else uses https://api.jintel.ai/api)
+  --json               Output raw JSON instead of a table (where applicable)
+  --help, -h           Show help for the command
 
 Run "jintel <command> --help" for command-specific usage.
 `;

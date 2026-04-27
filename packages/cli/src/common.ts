@@ -2,15 +2,23 @@ import {
   JintelAuthError,
   JintelClient,
   JintelError,
+  JintelPaymentRequiredError,
   JintelUnreachableError,
   JintelValidationError,
   type EnrichOptions,
   type EnrichmentField,
   type Entity,
+  type JintelFetch,
   type JintelResult,
 } from "@yojinhq/jintel-client";
+import { wrapFetchWithPayment, createSigner } from "x402-fetch";
 import { getBool, getString, type ParsedArgs } from "./args.js";
-import { MissingApiKeyError, resolveConfig } from "./config.js";
+import {
+  InvalidWalletKeyError,
+  MissingCredentialsError,
+  resolveConfig,
+  type ResolvedConfig,
+} from "./config.js";
 import { printJson } from "./format.js";
 
 /** Exit codes used by every command. */
@@ -38,14 +46,35 @@ export function extractCommonFlags(args: ParsedArgs): CommandOptions {
 }
 
 /**
- * Build a client using --api-key/--base-url flags and env/config fallbacks.
- * Throws `MissingApiKeyError` (caught by the command wrapper) when unresolved.
+ * Build a client from CLI flags and env/config fallbacks. Selects between
+ * Bearer (apiKey) and x402 wallet mode automatically — see `resolveConfig`.
+ * Throws `MissingCredentialsError` (caught by the command wrapper) when neither
+ * a key nor a wallet is supplied.
  */
 export function buildClient(args: ParsedArgs): JintelClient {
   const flagKey = getString(args.flags, "api-key");
   const flagUrl = getString(args.flags, "base-url");
-  const { apiKey, baseUrl } = resolveConfig(flagKey, flagUrl);
-  return new JintelClient({ apiKey, baseUrl });
+  const flagWalletKey = getString(args.flags, "wallet-key");
+  const config = resolveConfig(flagKey, flagUrl, flagWalletKey);
+  return clientForConfig(config);
+}
+
+function clientForConfig(config: ResolvedConfig): JintelClient {
+  if (config.auth.kind === "apiKey") {
+    return new JintelClient({ apiKey: config.auth.apiKey, baseUrl: config.baseUrl });
+  }
+  // `createSigner` is async (it also supports Solana wallets); build the signer
+  // lazily on the first request so this function can stay sync.
+  const auth = config.auth;
+  let inner: ((input: RequestInfo, init?: RequestInit) => Promise<Response>) | undefined;
+  const lazyFetch: JintelFetch = async (input, init) => {
+    if (!inner) {
+      const signer = await createSigner("base", auth.walletPrivateKey);
+      inner = wrapFetchWithPayment(globalThis.fetch, signer, auth.maxValueAtomic);
+    }
+    return inner(input as RequestInfo, init);
+  };
+  return new JintelClient({ fetch: lazyFetch, baseUrl: config.baseUrl });
 }
 
 /**
@@ -58,12 +87,22 @@ export async function runCommand(
   try {
     return await fn();
   } catch (err) {
-    if (err instanceof MissingApiKeyError) {
+    if (err instanceof MissingCredentialsError || err instanceof InvalidWalletKeyError) {
       process.stderr.write(`jintel: ${err.message}\n`);
       return EXIT.AUTH_ERROR;
     }
     if (err instanceof JintelAuthError) {
       process.stderr.write(`jintel: auth error: ${err.message}\n`);
+      return EXIT.AUTH_ERROR;
+    }
+    if (err instanceof JintelPaymentRequiredError) {
+      const accept = err.quote?.accepts[0];
+      const detail = accept
+        ? ` quote: ${accept.amount} of ${accept.asset} on ${accept.network} → ${accept.payTo}.`
+        : "";
+      process.stderr.write(
+        `jintel: payment required.${detail} Set JINTEL_WALLET_PRIVATE_KEY or raise JINTEL_X402_MAX_VALUE.\n`,
+      );
       return EXIT.AUTH_ERROR;
     }
     if (err instanceof JintelUnreachableError) {

@@ -16,14 +16,18 @@ npx -y @yojinhq/jintel-mcp
 
 ## Configuration
 
-Set your Jintel API key via env var. Get a key at [api.jintel.ai](https://api.jintel.ai).
+The server runs in one of two auth modes — set exactly one:
 
-| Variable          | Required | Description                                      |
-|-------------------|----------|--------------------------------------------------|
-| `JINTEL_API_KEY`  | Yes      | Your Jintel API key                              |
-| `JINTEL_BASE_URL` | No       | Override base URL (default: `https://api.jintel.ai/api`) |
+| Variable                     | Mode      | Description                                                                                  |
+|------------------------------|-----------|----------------------------------------------------------------------------------------------|
+| `JINTEL_API_KEY`             | Bearer    | Org-issued API key. Get one at [api.jintel.ai](https://api.jintel.ai).                       |
+| `JINTEL_WALLET_PRIVATE_KEY`  | x402      | `0x`-prefixed 32-byte hex. Pays per query in USDC on Base — keyless / agent-native.          |
+| `JINTEL_X402_MAX_VALUE`      | x402 opt. | Max atomic USDC per query (6 decimals). Defaults to `1000000` (= $1).                        |
+| `JINTEL_BASE_URL`            | both      | Override base URL (default: `https://api.jintel.ai/api`).                                    |
 
-## Claude Desktop
+`JINTEL_API_KEY` wins if both are set. The wallet path requires USDC on Base mainnet (chain `8453`); top up at any USDC on-ramp before starting the server.
+
+## Claude Desktop — Bearer mode
 
 Add to `claude_desktop_config.json`:
 
@@ -38,6 +42,23 @@ Add to `claude_desktop_config.json`:
       "args": ["-y", "@yojinhq/jintel-mcp"],
       "env": {
         "JINTEL_API_KEY": "jk_live_your_key_here"
+      }
+    }
+  }
+}
+```
+
+## Claude Desktop — wallet mode (x402, no API key)
+
+```json
+{
+  "mcpServers": {
+    "jintel": {
+      "command": "npx",
+      "args": ["-y", "@yojinhq/jintel-mcp"],
+      "env": {
+        "JINTEL_WALLET_PRIVATE_KEY": "0xabc...",
+        "JINTEL_X402_MAX_VALUE": "5000000"
       }
     }
   }

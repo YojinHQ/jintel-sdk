@@ -185,9 +185,9 @@ export function buildCoreTools(client: JintelClient): ToolDefinition[] {
               data: {
                 ...result.data,
                 data: {
-                  income: projectFields(fs.income as Record<string, unknown>[], fieldsResult.fields),
-                  balanceSheet: projectFields(fs.balanceSheet as Record<string, unknown>[], fieldsResult.fields),
-                  cashFlow: projectFields(fs.cashFlow as Record<string, unknown>[], fieldsResult.fields),
+                  income: Array.isArray(fs.income) ? projectFields(fs.income as Record<string, unknown>[], fieldsResult.fields) : fs.income,
+                  balanceSheet: Array.isArray(fs.balanceSheet) ? projectFields(fs.balanceSheet as Record<string, unknown>[], fieldsResult.fields) : fs.balanceSheet,
+                  cashFlow: Array.isArray(fs.cashFlow) ? projectFields(fs.cashFlow as Record<string, unknown>[], fieldsResult.fields) : fs.cashFlow,
                 },
               },
             };
@@ -278,7 +278,7 @@ export function buildCoreTools(client: JintelClient): ToolDefinition[] {
       name: 'jintel_query',
       bundle: 'core' as const,
       description:
-        "Compact aggregator — a SINGLE tool that fetches any per-entity sub-graph by `kind` (one of 27 names: news / risk / executives / financials / clinical_trials / …). Use when you want to keep your agent's tool list short to save tokens. Returns the same `{ id, tickers, data }` shape as the dedicated tool. **For richer filters** (severities, transaction codes, FDA event types, segment dimensions) use the dedicated `jintel_*` tool — this aggregator only supports `since` / `until` / `limit` / `sort`.",
+        "Compact aggregator — a SINGLE tool that fetches any per-entity sub-graph by `kind` (one of 27 names: news / risk / executives / financials / clinical_trials / …). Use when you want to keep your agent's tool list short to save tokens. Returns the same `{ id, tickers, data }` shape as the dedicated tool. **For richer filters** (severities, transaction codes, FDA event types, segment dimensions) use the dedicated `jintel_*` tool — this aggregator only supports `since` / `until` / `limit` / `sort`. Not available via this tool: `gdp`, `inflation`, `interest_rates`, `macro_series`, `campaign_finance`, `short_interest` — use their dedicated tools instead.",
       inputSchema: {
         type: 'object',
         properties: {

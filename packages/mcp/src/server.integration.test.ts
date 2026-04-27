@@ -4,17 +4,17 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createJintelMcpServer } from './server.js';
 
+const TOTAL_TOOLS = 42; // 41 domain tools + jintel_load_bundle
+
 describe('dynamic mode integration', () => {
   afterEach(() => {
     delete process.env.JINTEL_TOOLSET;
     delete process.env.JINTEL_DYNAMIC_CLIENTS;
-    delete process.env.JINTEL_API_KEY;
   });
 
   it('loads regulatory bundle and sees new tools after list_changed', async () => {
     delete process.env.JINTEL_TOOLSET;
     delete process.env.JINTEL_DYNAMIC_CLIENTS;
-    process.env.JINTEL_API_KEY = 'jk_test_dummy';
 
     const { server } = createJintelMcpServer({
       auth: { kind: 'apiKey', apiKey: 'jk_test_dummy' },
@@ -39,14 +39,16 @@ describe('dynamic mode integration', () => {
       ]),
     );
 
-    // 2) Subscribe to list_changed.
+    // 2) Subscribe to list_changed — resolve the promise on delivery.
     let changes = 0;
-    client.setNotificationHandler(
-      ToolListChangedNotificationSchema,
-      async () => {
-        changes++;
-      },
-    );
+    let notify!: () => void;
+    const notification = new Promise<void>((resolve) => {
+      notify = resolve;
+    });
+    client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
+      changes++;
+      notify();
+    });
 
     // 3) Call jintel_load_bundle.
     const loadResult = await client.callTool({
@@ -55,8 +57,8 @@ describe('dynamic mode integration', () => {
     });
     expect(loadResult.isError).toBeFalsy();
 
-    // Allow the notification to be delivered.
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // Wait for the notification to be actually delivered.
+    await notification;
     expect(changes).toBe(1);
 
     // 4) Refetch tools — regulatory should be present.
@@ -83,13 +85,11 @@ describe('static-all mode integration', () => {
   afterEach(() => {
     delete process.env.JINTEL_TOOLSET;
     delete process.env.JINTEL_DYNAMIC_CLIENTS;
-    delete process.env.JINTEL_API_KEY;
   });
 
   it('exposes all 42 tools to a non-allowlisted client and never fires list_changed', async () => {
     delete process.env.JINTEL_TOOLSET;
     delete process.env.JINTEL_DYNAMIC_CLIENTS;
-    process.env.JINTEL_API_KEY = 'jk_test_dummy';
 
     const { server } = createJintelMcpServer({
       auth: { kind: 'apiKey', apiKey: 'jk_test_dummy' },
@@ -108,7 +108,7 @@ describe('static-all mode integration', () => {
     );
 
     const list = await client.listTools();
-    expect(list.tools.length).toBe(42);
+    expect(list.tools.length).toBe(TOTAL_TOOLS);
 
     // load_bundle in static mode returns a canned message, no notification.
     const r = await client.callTool({
@@ -118,7 +118,7 @@ describe('static-all mode integration', () => {
     expect(r.isError).toBeFalsy();
     expect((r.content as Array<{ text: string }>)[0]!.text).toContain('JINTEL_TOOLSET');
 
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    // Static mode never fires list_changed — assert immediately, no wait needed.
     expect(changes).toBe(0);
 
     await client.close();
@@ -127,7 +127,6 @@ describe('static-all mode integration', () => {
 
   it('JINTEL_TOOLSET=core,markets exposes only those bundles', async () => {
     process.env.JINTEL_TOOLSET = 'core,markets';
-    process.env.JINTEL_API_KEY = 'jk_test_dummy';
 
     const { server } = createJintelMcpServer({
       auth: { kind: 'apiKey', apiKey: 'jk_test_dummy' },

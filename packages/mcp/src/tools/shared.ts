@@ -70,7 +70,7 @@ export function asString(value: unknown, field: string): string {
       `Argument '${field}' must be a non-empty string`,
     );
   }
-  return value;
+  return value.trim();
 }
 
 export function asOptionalString(value: unknown, field: string): string | undefined {
@@ -78,7 +78,7 @@ export function asOptionalString(value: unknown, field: string): string | undefi
   if (typeof value !== 'string') {
     throw new JintelValidationError(`Argument '${field}' must be a string`);
   }
-  return value;
+  return value.trim();
 }
 
 export function asOptionalNumber(value: unknown, field: string): number | undefined {
@@ -102,7 +102,7 @@ export function asStringArray(value: unknown, field: string): string[] {
         `Argument '${field}[${i}]' must be a non-empty string`,
       );
     }
-    out.push(item);
+    out.push(item.trim());
   }
   return out;
 }
@@ -209,7 +209,7 @@ export function asOptionalStringArray(
         `Argument '${field}[${i}]' must be a non-empty string`,
       );
     }
-    out.push(item);
+    out.push(item.trim());
   }
   return out;
 }

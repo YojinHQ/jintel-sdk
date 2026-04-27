@@ -184,7 +184,7 @@ export function resolveMode(input: ResolveModeInput): ResolvedMode {
     if (toolset === 'dynamic') {
       return { mode: 'dynamic', activeBundles: new Set<BundleName>(['core']), emitListChanged: true };
     }
-    const requested = toolset.split(',').map((s) => s.trim()).filter(Boolean);
+    const requested = [...new Set(toolset.split(',').map((s) => s.trim()).filter(Boolean))];
     const bundles = new Set<BundleName>(['core']);
     for (const r of requested) {
       if (!ALL_BUNDLES.has(r as BundleName)) {

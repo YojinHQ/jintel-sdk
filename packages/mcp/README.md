@@ -202,8 +202,7 @@ names return an error listing the valid set.
 
 ### Migrating from 0.2.x
 
-Set `JINTEL_TOOLSET=all` to preserve the old flat 41-tool surface
-exactly. No other behavior changes.
+Set `JINTEL_TOOLSET=all` to preserve the flat tool surface — you'll see 42 tools total: the original 41 plus `jintel_load_bundle` (which is a no-op in static mode but always listed). No other behavior changes.
 
 ## Local dev
 

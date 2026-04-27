@@ -125,7 +125,7 @@ export function buildMacroTools(client: JintelClient): ToolDefinition[] {
       name: 'jintel_macro_series',
       bundle: 'macro' as const,
       description:
-        "Generic FRED-style US macro time series by series ID — UNRATE (unemployment), CPIAUCSL (headline CPI), GDPC1 (real GDP), DGS10 (10y Treasury), T10Y2Y (yield curve), M2SL (money supply), and many more. Use `seriesId` for one series, `seriesIds` (array) to batch up to ~20. Returns series metadata + observations. Filter observations with `since` / `until` / `limit`.",
+        "Generic FRED-style US macro time series by series ID — UNRATE (unemployment), CPIAUCSL (headline CPI), GDPC1 (real GDP), DGS10 (10y Treasury), T10Y2Y (yield curve), M2SL (money supply), and many more. Use `seriesId` for one series, `seriesIds` (array) to batch up to ~20. Returns series metadata + observations. Filter observations with `since` / `until` / `limit`. Provide either `seriesId` (single) or `seriesIds` (multiple) — at least one is required.",
       inputSchema: {
         type: 'object',
         properties: {

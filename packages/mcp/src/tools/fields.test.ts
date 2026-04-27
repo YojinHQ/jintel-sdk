@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateFields } from './fields.js';
+import { asString, projectFields } from './shared.js';
 
 describe('validateFields', () => {
   const valid = new Set(['revenue', 'netIncome', 'eps']);
@@ -35,5 +36,20 @@ describe('validateFields', () => {
     const r = validateFields('revenue' as unknown as string[], valid);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain('must be an array');
+  });
+});
+
+describe('projectFields', () => {
+  it('silently omits requested fields that are not present in a row', () => {
+    const rows = [{ a: 1, b: 2 }, { a: 3 }] as Array<Record<string, unknown>>;
+    const out = projectFields(rows, ['a', 'b']);
+    expect(out).toEqual([{ a: 1, b: 2 }, { a: 3 }]);
+    expect('b' in out[1]!).toBe(false);
+  });
+});
+
+describe('asString', () => {
+  it('trims surrounding whitespace from input', () => {
+    expect(asString('  AAPL  ', 'ticker')).toBe('AAPL');
   });
 });

@@ -4,7 +4,7 @@
 
 - Default Claude Desktop / Cursor / Cline surface is now 6 core tools.
   Additional domain bundles load on demand via jintel_load_bundle.
-- Set JINTEL_TOOLSET=all to restore the flat 41-tool surface exactly.
+- Set JINTEL_TOOLSET=all to restore the flat 42-tool surface exactly.
 - Indexers and non-MCP-aware bridges (LangChain, OpenAI wrappers) auto-
   detect via clientInfo.name and receive the full surface unchanged.
 - New optional `fields` argument on jintel_financials, jintel_segmented_
@@ -21,5 +21,5 @@
 ## 0.2.1 — x402 wallet support
 
 - Added keyless x402 payment flow using USDC on Base via x402-fetch.
-- Set JINTEL_WALLET_KEY to enable automatic micropayment settlement
+- Set JINTEL_WALLET_PRIVATE_KEY to enable automatic micropayment settlement
   without a separate Jintel API key.

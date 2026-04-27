@@ -86,6 +86,13 @@ describe('resolveMode', () => {
     ).toThrow(/unknown bundle/);
   });
 
+  it('JINTEL_TOOLSET=core,core (duplicate) is treated as dynamic mode', () => {
+    const r = resolveMode({ toolset: 'core,core', dynamicClients: undefined, clientName: 'anything' });
+    expect(r.mode).toBe('dynamic');
+    expect(r.emitListChanged).toBe(true);
+    expect(Array.from(r.activeBundles)).toEqual(['core']);
+  });
+
   it('exports DEFAULT_DYNAMIC_CLIENTS containing claude-ai and cursor', () => {
     expect(DEFAULT_DYNAMIC_CLIENTS).toContain('claude-ai');
     expect(DEFAULT_DYNAMIC_CLIENTS).toContain('cursor');

@@ -78,16 +78,15 @@ claude mcp add jintel -- npx -y @yojinhq/jintel-mcp
 
 ### Core
 
-| Tool                      | Purpose                                                                            |
-|---------------------------|------------------------------------------------------------------------------------|
-| `jintel_quote`            | Real-time quotes for stocks, crypto, indices                                       |
-| `jintel_search`           | Search entities by name / ticker / keyword                                         |
-| `jintel_enrich`           | Full profile for one ticker                                                        |
-| `jintel_batch_enrich`     | Full profiles for up to 20 tickers                                                 |
-| `jintel_sanctions_screen` | Sanctions screening by name                                                        |
-| `jintel_price_history`    | OHLCV candles for up to 20 tickers                                                 |
-| `jintel_market_status`    | US market open/close status                                                        |
-| `jintel_query`            | Compact dispatcher — single tool that routes to any per-entity sub-graph by `kind` |
+These five tools form the `core` bundle — always loaded in dynamic mode. Other tools live in the bundles listed below and load on demand via `jintel_load_bundle` (or all-at-once in static mode).
+
+| Tool                | Purpose                                                                            |
+|---------------------|------------------------------------------------------------------------------------|
+| `jintel_quote`      | Real-time quotes for stocks, crypto, indices                                       |
+| `jintel_search`     | Search entities by name / ticker / keyword                                         |
+| `jintel_financials` | Income statement / balance sheet / cash flow                                       |
+| `jintel_news`       | Recent news articles with sentiment + source filters                               |
+| `jintel_query`      | Compact dispatcher — single tool that routes to any per-entity sub-graph by `kind` |
 
 ### Per-entity sub-graphs
 

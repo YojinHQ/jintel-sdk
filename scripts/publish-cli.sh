@@ -57,15 +57,7 @@ fi
 info "Building cli..."
 pnpm --filter @yojinhq/jintel-cli build
 
-# --- publish ---
-info "Publishing @yojinhq/jintel-cli@$NEW_VERSION..."
-cd "$CLI_DIR"
-npm publish --access public "$@"
-cd - > /dev/null
-
-info "Published @yojinhq/jintel-cli@$NEW_VERSION"
-
-# --- git ---
+# --- git (record bump before the irreversible publish step) ---
 if [ "$SKIPPED_BUMP" = "0" ]; then
   info "Committing version bump..."
   git add "$PACKAGE_JSON"
@@ -76,5 +68,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 else
   info "No version bump to commit (used existing local version)."
 fi
+
+# --- publish ---
+info "Publishing @yojinhq/jintel-cli@$NEW_VERSION..."
+cd "$CLI_DIR"
+npm publish --access public "$@"
+cd - > /dev/null
+
+info "Published @yojinhq/jintel-cli@$NEW_VERSION"
 
 info "Done! https://www.npmjs.com/package/@yojinhq/jintel-cli"

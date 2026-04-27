@@ -78,7 +78,8 @@ export function asOptionalString(value: unknown, field: string): string | undefi
   if (typeof value !== 'string') {
     throw new JintelValidationError(`Argument '${field}' must be a string`);
   }
-  return value.trim();
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
 }
 
 export function asOptionalNumber(value: unknown, field: string): number | undefined {

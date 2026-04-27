@@ -19,6 +19,15 @@ export interface ServerHandle {
 export function createJintelMcpServer(config: McpConfig): ServerHandle {
   const client = buildClient(config);
 
+  // Fail fast on malformed JINTEL_TOOLSET; client-name auto-detection is still lazy.
+  if (process.env.JINTEL_TOOLSET?.trim()) {
+    resolveMode({
+      toolset: process.env.JINTEL_TOOLSET,
+      dynamicClients: process.env.JINTEL_DYNAMIC_CLIENTS,
+      clientName: undefined,
+    });
+  }
+
   const server = new McpServer(
     {
       name: '@yojinhq/jintel-mcp',
@@ -31,8 +40,7 @@ export function createJintelMcpServer(config: McpConfig): ServerHandle {
     },
   );
 
-  // Mode is resolved lazily, on the first tools/list request, by which time
-  // `initialize` has completed and clientInfo is readable.
+  // Resolved lazily on first request — clientInfo is only readable post-initialize.
   let resolved: { activeBundles: Set<BundleName>; emitListChanged: boolean; staticMode: boolean } | null = null;
   let tools: ToolDefinition[] = [];
   let toolsByName: Map<string, ToolDefinition> = new Map();
@@ -64,9 +72,7 @@ export function createJintelMcpServer(config: McpConfig): ServerHandle {
     );
   }
 
-  // We use the underlying server's setRequestHandler directly because our tools/list
-  // is filtered by the active bundle set (dynamic mode) and tools/call enforces
-  // bundle_not_loaded — McpServer.registerTool can't model that.
+  // Low-level handlers: McpServer.registerTool can't model bundle filtering.
   server.server.setRequestHandler(ListToolsRequestSchema, async () => {
     ensureBuilt();
     const active = resolved!.activeBundles;

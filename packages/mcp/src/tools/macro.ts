@@ -136,6 +136,7 @@ export function buildMacroTools(client: JintelClient): ToolDefinition[] {
           seriesIds: {
             type: 'array',
             items: { type: 'string' },
+            minItems: 1,
             description: 'Batch — multiple series IDs in one call.',
           },
           since: SINCE_SCHEMA,
@@ -149,14 +150,15 @@ export function buildMacroTools(client: JintelClient): ToolDefinition[] {
         try {
           const seriesId = asOptionalString(args.seriesId, 'seriesId');
           const seriesIds = asOptionalStringArray(args.seriesIds, 'seriesIds');
-          if (seriesId == null && seriesIds == null) {
+          const hasSeriesIds = seriesIds != null && seriesIds.length > 0;
+          if (seriesId == null && !hasSeriesIds) {
             return fail("Argument 'seriesId' or 'seriesIds' must be provided");
           }
-          if (seriesId != null && seriesIds != null) {
+          if (seriesId != null && hasSeriesIds) {
             return fail("Pass either 'seriesId' or 'seriesIds', not both");
           }
           const filter = buildArrayFilter(args);
-          if (seriesIds != null) {
+          if (hasSeriesIds) {
             return runTool(() => client.macroSeriesBatch(seriesIds, filter));
           }
           if (seriesId !== undefined) {

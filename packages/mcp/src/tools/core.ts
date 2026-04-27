@@ -319,6 +319,7 @@ export function buildCoreTools(client: JintelClient): ToolDefinition[] {
           since: SINCE_SCHEMA,
           until: UNTIL_SCHEMA,
           limit: LIMIT_SCHEMA,
+          sort: SORT_SCHEMA,
         },
         required: ['ticker', 'kind'],
         additionalProperties: false,
@@ -330,9 +331,10 @@ export function buildCoreTools(client: JintelClient): ToolDefinition[] {
           const since = asOptionalString(args.since, 'since');
           const until = asOptionalString(args.until, 'until');
           const limit = asOptionalNumber(args.limit, 'limit');
+          const sort = asOptionalEnum(args.sort, 'sort', ASC_DESC);
           const arrayFilter: ArraySubGraphOptions | undefined =
-            since != null || until != null || limit != null
-              ? { since, until, limit }
+            since != null || until != null || limit != null || sort != null
+              ? { since, until, limit, sort }
               : undefined;
 
           // Route to the appropriate sub-graph. Each branch must be exhaustive —

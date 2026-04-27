@@ -57,15 +57,7 @@ fi
 info "Building mcp..."
 pnpm --filter @yojinhq/jintel-mcp build
 
-# --- publish ---
-info "Publishing @yojinhq/jintel-mcp@$NEW_VERSION..."
-cd "$MCP_DIR"
-npm publish --access public "$@"
-cd - > /dev/null
-
-info "Published @yojinhq/jintel-mcp@$NEW_VERSION"
-
-# --- git ---
+# --- git (record bump before the irreversible publish step) ---
 if [ "$SKIPPED_BUMP" = "0" ]; then
   info "Committing version bump..."
   git add "$PACKAGE_JSON"
@@ -76,5 +68,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 else
   info "No version bump to commit (used existing local version)."
 fi
+
+# --- publish ---
+info "Publishing @yojinhq/jintel-mcp@$NEW_VERSION..."
+cd "$MCP_DIR"
+npm publish --access public "$@"
+cd - > /dev/null
+
+info "Published @yojinhq/jintel-mcp@$NEW_VERSION"
 
 info "Done! https://www.npmjs.com/package/@yojinhq/jintel-mcp"

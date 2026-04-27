@@ -12,11 +12,27 @@ npm install -g @yojinhq/jintel-cli
 
 ## Credentials
 
-The CLI resolves the API key in this order:
+The CLI runs in one of two auth modes:
 
+**Bearer (API key)** — resolved in this order:
 1. `--api-key <key>` flag
-2. `JINTEL_API_KEY` environment variable
+2. `JINTEL_API_KEY` env var
 3. `~/.jintel/config.json` (`{"apiKey": "...", "baseUrl": "..."}`)
+
+**x402 wallet (USDC on Base)** — keyless, pays per query (typical $0.015 floor):
+1. `--wallet-key <0x…>` flag
+2. `JINTEL_WALLET_PRIVATE_KEY` env var
+3. `~/.jintel/config.json` (`{"walletKey": "0x..."}`)
+
+`apiKey` wins if both are present. Per-query spend is capped by `JINTEL_X402_MAX_VALUE`
+(atomic USDC, default `1000000` = $1).
+
+```bash
+# Wallet mode — no API key needed
+export JINTEL_WALLET_PRIVATE_KEY=0xabc...           # USDC-funded wallet on Base
+jintel quote AAPL MSFT
+jintel enrich AAPL --fields news,technicals
+```
 
 The base URL defaults to `https://api.jintel.ai/api`. Override with
 `--base-url <url>` or `JINTEL_API_URL`.

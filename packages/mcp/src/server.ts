@@ -5,7 +5,8 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { JintelClient } from '@yojinhq/jintel-client';
+import { JintelClient, type JintelFetch } from '@yojinhq/jintel-client';
+import { wrapFetchWithPayment, createSigner } from 'x402-fetch';
 import type { McpConfig } from './config.js';
 import { buildTools, type ToolDefinition } from './tools.js';
 
@@ -15,10 +16,7 @@ export interface ServerHandle {
 }
 
 export function createJintelMcpServer(config: McpConfig): ServerHandle {
-  const client = new JintelClient({
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-  });
+  const client = buildClient(config);
 
   const tools = buildTools(client);
   const toolsByName = new Map<string, ToolDefinition>(tools.map((t) => [t.name, t]));
@@ -69,11 +67,38 @@ export function createJintelMcpServer(config: McpConfig): ServerHandle {
   return { server, tools };
 }
 
+function buildClient(config: McpConfig): JintelClient {
+  if (config.auth.kind === 'apiKey') {
+    return new JintelClient({ apiKey: config.auth.apiKey, baseUrl: config.baseUrl });
+  }
+  // x402 v2 wallet mode — pay per query in USDC on Base. The server's
+  // 402 → sign EIP-3009 → retry handshake is handled inside
+  // `wrapFetchWithPayment`; we just hand it a signer and a max-spend cap.
+  // `createSigner` is async (the package supports Solana wallets too), so
+  // build the signer lazily on the first call to keep this function sync.
+  const auth = config.auth;
+  let inner: ((input: RequestInfo, init?: RequestInit) => Promise<Response>) | undefined;
+  const lazyFetch: JintelFetch = async (input, init) => {
+    if (!inner) {
+      const signer = await createSigner('base', auth.walletPrivateKey);
+      inner = wrapFetchWithPayment(globalThis.fetch, signer, auth.maxValueAtomic);
+    }
+    return inner(input as RequestInfo, init);
+  };
+  return new JintelClient({ fetch: lazyFetch, baseUrl: config.baseUrl });
+}
+
+function describeAuthMode(config: McpConfig): string {
+  if (config.auth.kind === 'apiKey') return 'apiKey';
+  return `wallet (x402, max=${config.auth.maxValueAtomic} atomic USDC)`;
+}
+
 export async function startStdioServer(config: McpConfig): Promise<void> {
   const { server, tools } = createJintelMcpServer(config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(
-    `[jintel-mcp] ready — ${tools.length} tools registered, base=${config.baseUrl ?? 'default'}`,
+    `[jintel-mcp] ready — ${tools.length} tools registered, ` +
+      `auth=${describeAuthMode(config)}, base=${config.baseUrl ?? 'default'}`,
   );
 }

@@ -2,6 +2,7 @@ import {
   ALL_ENRICHMENT_FIELDS,
   JintelAuthError,
   JintelClient,
+  JintelPaymentRequiredError,
   JintelUnreachableError,
   JintelValidationError,
 } from "@yojinhq/jintel-client";
@@ -87,7 +88,12 @@ function toResult<T>(result: JintelResult<T>): ToolCallResult {
 
 function errorMessage(err: unknown): string {
   if (err instanceof JintelAuthError) {
-    return `Authentication error: ${err.message}. Check JINTEL_API_KEY.`;
+    return `Authentication error: ${err.message}. Check JINTEL_API_KEY or JINTEL_WALLET_PRIVATE_KEY.`;
+  }
+  if (err instanceof JintelPaymentRequiredError) {
+    const accept = err.quote?.accepts[0];
+    const detail = accept ? ` (quote: ${accept.amount} of ${accept.asset} on ${accept.network} → ${accept.payTo})` : '';
+    return `Payment required${detail}. Set JINTEL_WALLET_PRIVATE_KEY for x402 wallet mode, or raise JINTEL_X402_MAX_VALUE if the quote exceeds your cap.`;
   }
   if (err instanceof JintelUnreachableError) {
     return `Jintel API unreachable: ${err.message}`;

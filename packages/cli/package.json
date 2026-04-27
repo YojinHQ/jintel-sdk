@@ -25,15 +25,18 @@
   ],
   "scripts": {
     "build": "tsc && chmod +x dist/bin.js",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@yojinhq/jintel-client": "workspace:*"
+    "@yojinhq/jintel-client": "workspace:*",
+    "x402-fetch": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -29,6 +29,7 @@ import type {
   EntityType,
   FamaFrenchSeries,
   FactorDataPoint,
+  JintelFetch,
   MacroSeries,
   GdpType,
   GraphQLError,
@@ -47,6 +48,7 @@ import type {
   SP500Series,
   TickerPriceHistory,
   USMarketStatus,
+  X402Quote,
 } from './types.js';
 import { ALL_ENRICHMENT_FIELDS, GraphQLResponseSchema } from './types.js';
 import type { EnrichOptions } from './types.js';
@@ -255,6 +257,54 @@ export class JintelValidationError extends JintelError {
   }
 }
 
+/**
+ * Thrown when the API returns HTTP 402 Payment Required (x402 v2). When the
+ * caller is not using an `x402-fetch`-wrapped fetch, this error is the only
+ * way the quote surfaces — `quote.accepts[]` lists the acceptable USDC
+ * payment options on Base. Wrap `fetch` with `x402-fetch` to handle the
+ * 402 → sign → retry handshake automatically.
+ */
+export class JintelPaymentRequiredError extends JintelError {
+  readonly quote?: X402Quote;
+  /** Raw base64-encoded `PAYMENT-REQUIRED` header value, if present. */
+  readonly paymentRequiredHeader?: string;
+
+  constructor(message: string, quote?: X402Quote, paymentRequiredHeader?: string) {
+    super(message, 'PAYMENT_REQUIRED');
+    this.name = 'JintelPaymentRequiredError';
+    this.quote = quote;
+    this.paymentRequiredHeader = paymentRequiredHeader;
+  }
+}
+
+function decodeBase64Utf8(input: string): string {
+  if (typeof globalThis.atob === 'function') {
+    const binary = globalThis.atob(input);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+  // Node fallback. `Buffer` is a global in all supported runtimes (>= Node 20).
+  const Buf = (globalThis as { Buffer?: { from: (s: string, enc: string) => { toString: (enc: string) => string } } }).Buffer;
+  if (Buf) return Buf.from(input, 'base64').toString('utf8');
+  throw new Error('No base64 decoder available');
+}
+
+function parsePaymentRequiredHeader(raw: string | null): X402Quote | undefined {
+  if (!raw) return undefined;
+  try {
+    const json = decodeBase64Utf8(raw);
+    const parsed = JSON.parse(json) as X402Quote;
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.accepts)) {
+      return parsed;
+    }
+  } catch {
+    // Header malformed — fall through and return undefined so the caller
+    // can still throw a structured error with the raw header attached.
+  }
+  return undefined;
+}
+
 // ── Result Types ──────────────────────────────────────────────────────────
 
 export type JintelResult<T> = { success: true; data: T } | { success: false; error: string };
@@ -271,18 +321,22 @@ export const JINTEL_API_URL = 'https://api.jintel.ai/api';
 
 export class JintelClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey?: string;
+  private readonly fetchImpl: JintelFetch;
   private readonly timeout: number;
   private readonly debug: boolean;
   private readonly responseCache?: ResponseCache;
   private readonly defaultAsOf?: string;
 
   constructor(config: JintelClientConfig) {
-    if (!config.apiKey) {
-      throw new JintelAuthError('apiKey is required and must not be empty');
+    if (!config.apiKey && !config.fetch) {
+      throw new JintelAuthError(
+        'apiKey or a custom fetch (e.g. x402-fetch wrapped) is required',
+      );
     }
     this.baseUrl = config.baseUrl ?? JINTEL_API_URL;
     this.apiKey = config.apiKey;
+    this.fetchImpl = config.fetch ?? ((input, init) => fetch(input as RequestInfo, init));
     this.timeout = config.timeout ?? 30_000;
     this.debug = config.debug ?? false;
     this.defaultAsOf = config.asOf;
@@ -301,15 +355,17 @@ export class JintelClient {
   private async execute(query: string, variables?: Record<string, unknown>): Promise<GraphQLResponse> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${this.apiKey}`,
     };
+    if (this.apiKey) {
+      headers.Authorization = `Bearer ${this.apiKey}`;
+    }
     if (this.debug) {
       headers['X-Debug'] = 'true';
     }
 
     let response: Response;
     try {
-      response = await fetch(`${this.baseUrl}/graphql`, {
+      response = await this.fetchImpl(`${this.baseUrl}/graphql`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ query, variables }),
@@ -324,6 +380,17 @@ export class JintelClient {
 
     if (response.status === 401) {
       throw new JintelAuthError('Authentication failed: invalid or expired API key');
+    }
+
+    if (response.status === 402) {
+      const headerValue = response.headers.get('payment-required');
+      const quote = parsePaymentRequiredHeader(headerValue);
+      const detail = quote?.error ?? 'wrap fetch with x402-fetch or supply an apiKey';
+      throw new JintelPaymentRequiredError(
+        `HTTP 402 Payment Required: ${detail}`,
+        quote,
+        headerValue ?? undefined,
+      );
     }
 
     if (!response.ok) {

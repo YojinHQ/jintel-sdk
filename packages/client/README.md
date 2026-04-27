@@ -21,6 +21,40 @@ const aapl = await jintel.enrichEntity('AAPL', ['market', 'news', 'analyst']);
 
 All public methods return `JintelResult<T>` — a discriminated union `{ success: true, data } | { success: false, error }` — so errors never throw. Use `jintel.request(query, variables)` for arbitrary GraphQL.
 
+## Agent / pay-per-query (x402 v2)
+
+The Jintel API also accepts [x402 v2](https://x402.org) — sign an EIP-3009 USDC authorization on Base instead of presenting an API key. The server quotes each query from its GraphQL AST (floor $0.015, up to ~$10 for very large fan-outs).
+
+The client doesn't bundle a wallet. Pass an `x402-fetch`-wrapped `fetch` and skip `apiKey`:
+
+```ts
+import { JintelClient } from '@yojinhq/jintel-client';
+import { wrapFetchWithPayment } from 'x402-fetch';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const account = privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`);
+const jintel = new JintelClient({
+  fetch: wrapFetchWithPayment(fetch, account),
+});
+
+// First call triggers a 402; the wrapper signs and retries automatically.
+const quotes = await jintel.quotes(['AAPL', 'MSFT']);
+```
+
+If you call without a wrapper and the server returns 402, the SDK throws a typed `JintelPaymentRequiredError` carrying the parsed `X402Quote` (`network`, `asset`, `payTo`, `amount`, `maxTimeoutSeconds`) so you can sign and retry yourself:
+
+```ts
+import { JintelPaymentRequiredError } from '@yojinhq/jintel-client';
+
+try {
+  await jintel.request('{ marketStatus { isOpen } }');
+} catch (err) {
+  if (err instanceof JintelPaymentRequiredError) {
+    console.log(err.quote?.accepts[0]); // pay-to address, USDC amount, etc.
+  }
+}
+```
+
 ## Filtering array sub-graphs
 
 Most array fields accept an optional `filter` argument. The generic `ArrayFilterInput` covers date range + limit + sort; many sub-graphs have domain-specific inputs with extra dimensions.

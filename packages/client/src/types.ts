@@ -1190,10 +1190,66 @@ export interface JintelClientCacheConfig {
   priceHistoryTtlMs?: number;
 }
 
+/**
+ * One x402 v2 payment option, as advertised by the server in the
+ * `PAYMENT-REQUIRED` header on a 402 response.
+ *
+ * Mirrors the `accepts[]` entries in the OpenAPI `X402Quote` schema at
+ * `https://api.jintel.ai/openapi.json`. Atomic `amount` is in the asset's
+ * smallest unit (USDC has 6 decimals on Base).
+ */
+export interface X402PaymentRequirements {
+  scheme: string;
+  /** CAIP-2 network identifier, e.g. `eip155:8453` for Base. */
+  network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * Parsed `X402Quote` envelope. Delivered base64-encoded in the
+ * `PAYMENT-REQUIRED` response header on a 402 from `POST /api/graphql`.
+ */
+export interface X402Quote {
+  x402Version: 2;
+  resource: { url: string; description?: string; mimeType?: string };
+  accepts: X402PaymentRequirements[];
+  error?: string;
+  extensions?: Record<string, unknown>;
+}
+
+/**
+ * Minimal `fetch` shape the client needs. Compatible with the global `fetch`
+ * and with payment middlewares like `x402-fetch`'s `wrapFetchWithPayment`.
+ */
+export type JintelFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
 export interface JintelClientConfig {
   /** API base URL. Defaults to https://api.jintel.ai/api */
   baseUrl?: string;
-  apiKey: string;
+  /**
+   * API key for Bearer auth. Optional when `fetch` is provided (e.g. an
+   * `x402-fetch`-wrapped fetch handles auth via on-chain payment instead).
+   * At least one of `apiKey` or `fetch` must be supplied.
+   */
+  apiKey?: string;
+  /**
+   * Custom `fetch` implementation. Pass an `x402-fetch`-wrapped fetch to
+   * pay per query in USDC on Base — the wrapper handles the 402 → sign →
+   * retry handshake transparently. Defaults to the global `fetch`.
+   *
+   * @example
+   * ```ts
+   * import { wrapFetchWithPayment } from 'x402-fetch';
+   * import { privateKeyToAccount } from 'viem/accounts';
+   * const account = privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`);
+   * const client = new JintelClient({ fetch: wrapFetchWithPayment(fetch, account) });
+   * ```
+   */
+  fetch?: JintelFetch;
   timeout?: number;
   debug?: boolean;
   /**

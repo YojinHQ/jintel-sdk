@@ -72,7 +72,7 @@ fi
 # --- publish ---
 info "Publishing @yojinhq/jintel-mcp@$NEW_VERSION..."
 cd "$MCP_DIR"
-npm publish --access public "$@"
+pnpm publish --access public --no-git-checks "$@"
 cd - > /dev/null
 
 info "Published @yojinhq/jintel-mcp@$NEW_VERSION"

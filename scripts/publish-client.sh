@@ -61,7 +61,7 @@ pnpm --filter @yojinhq/jintel-client build
 # --- publish ---
 info "Publishing @yojinhq/jintel-client@$NEW_VERSION..."
 cd "$CLIENT_DIR"
-npm publish --access public "$@"
+pnpm publish --access public --no-git-checks "$@"
 cd - > /dev/null
 
 info "Published @yojinhq/jintel-client@$NEW_VERSION"

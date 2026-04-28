@@ -1,6 +1,6 @@
 {
   "name": "@yojinhq/jintel-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Model Context Protocol server for the Jintel intelligence API",
   "type": "module",
   "main": "dist/server.js",

@@ -7,3 +7,6 @@ dist/
 !.env.example
 
 docs/
+
+benchmark/reports/
+benchmark/.cache/

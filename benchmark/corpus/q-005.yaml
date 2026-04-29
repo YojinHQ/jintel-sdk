@@ -1,0 +1,10 @@
+id: q-005
+nl_question: "On what date did Apple file its most recent 10-K with the SEC, as of 2026-03-31? Answer in ISO 8601 format (YYYY-MM-DD)."
+tags: [live-data, regulatory, post-cutoff, jintel-mcp-favored]
+expected:
+  field: aapl_latest_10k_filing_date_as_of_2026_03_31
+  value: "2025-10-31"
+  unit: ISO_DATE
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K
+comparison:
+  type: exact_match

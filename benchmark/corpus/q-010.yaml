@@ -1,0 +1,11 @@
+id: q-010
+nl_question: "What was Berkshire Hathaway's total revenue for fiscal year 2025, in USD billions?"
+tags: [single-source, financials, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: brk_total_revenue_fy2025_usd_billions
+  value: 371.444
+  unit: USD_billions
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001067983&type=10-K
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 1.0

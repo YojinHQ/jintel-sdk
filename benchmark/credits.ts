@@ -1,10 +1,5 @@
-// Credit-meter snapshot helpers.
-//
-// `plan.usage.monthly` (from /api/v1/me) and `topupBalanceCredits` (from
-// /api/v1/credits/balance) are the canonical numbers the Jintel server
-// uses to bill orgs. We diff them across a run to attribute credit spend
-// to a single benchmark query, regardless of how the MCP wrapper formats
-// tool results.
+// Snapshots `plan.usage.monthly` (/api/v1/me) and `topupBalanceCredits`
+// (/api/v1/credits/balance); diffs them per run for credit attribution.
 
 export interface CreditSnapshot {
   planUsed: number;
@@ -48,8 +43,6 @@ export function createCreditClient(opts: { baseUrl: string; apiKey: string }): C
   };
 }
 
-// Compute drained credits between two snapshots. `before`/`after` may be null
-// when a fetch failed; in that case we report null and let the caller decide.
 // Plan-credit counters reset at month boundaries — clamp negative deltas.
 export function diffSnapshots(before: CreditSnapshot | null, after: CreditSnapshot | null): CreditDiff | null {
   if (!before || !after) return null;

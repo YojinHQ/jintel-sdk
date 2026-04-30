@@ -1,5 +1,5 @@
 export type VariantId = 'bare' | 'anthropic-web-search' | 'jintel-mcp' | 'jintel-cli';
-export type ExtractionPath = 'answer-tag' | 'last-assistant-message' | 'llm-extractor' | 'failed';
+export type ExtractionPath = 'answer-tag' | 'last-assistant-message' | 'failed';
 export type ComparisonRule = 'exact_match' | 'numeric_tolerance' | 'set_overlap' | 'structured_match';
 
 export interface TranscriptTurn {
@@ -34,7 +34,9 @@ export interface RunRecord {
   tool_calls: Array<{ name: string; args: unknown; latency_ms: number; error?: string }>;
   timing: { total_ms: number; model_thinking_ms: number; tool_round_trip_ms: number };
 
-  // Set by bench.ts when the variant has a billable upstream (jintel-mcp).
+  // True when the loop exited at MAX_AGENT_TURNS with the model still requesting tools.
+  truncated?: boolean;
+
   // `charged` = total credits drained for this run (planΔ + topupΔ).
   credits?: { charged: number; fromPlan: number; fromTopup: number };
 
@@ -61,6 +63,8 @@ export interface CorpusEntry {
     type: ComparisonRule;
     tolerance_pct?: number;
     threshold?: number;
+    precision_threshold?: number;
+    recall_threshold?: number;
     fields?: Record<string, { type: ComparisonRule; tolerance_pct?: number }>;
   };
 }

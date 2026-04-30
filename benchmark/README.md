@@ -53,8 +53,12 @@ comparison:                             # optional; auto-detected from `expected
   type: numeric_tolerance               # exact_match | numeric_tolerance | set_overlap | structured_match
   tolerance_pct: 1.0                    # only for numeric_tolerance
   threshold: 0.5                        # only for set_overlap (Jaccard ≥ threshold)
+  precision_threshold: 1.0              # only for set_overlap; require precision ≥ N (no false positives)
+  recall_threshold: 1.0                 # only for set_overlap; require recall ≥ N (no misses)
   fields: { ... }                       # only for structured_match
 ```
+
+When `precision_threshold` or `recall_threshold` is set, it replaces the Jaccard `threshold`. Use it for screens where misses or false positives each have real cost (e.g. sanctions: both at `1.0` enforces exact set equality).
 
 Auto-detection (when `comparison:` is omitted):
 
@@ -85,8 +89,8 @@ Per run, the pipeline is:
 3. **Compare** (`grader/compare.ts`) — applies the corpus `comparison.type`:
    - `exact_match` → `String(actual) === String(expected)`
    - `numeric_tolerance` → strips `$ , % whitespace` from both sides, parses as numbers, fails if `|Δ| / |expected| × 100 > tolerance_pct` (or `|actual| > tolerance_pct/100` when expected is 0)
-   - `set_overlap` → Jaccard similarity of the two arrays must be ≥ `threshold`
-   - `structured_match` → recurses per-field using the rule named in `fields`
+   - `set_overlap` → JSON-parses string actuals (e.g. `<answer>["A","B"]</answer>`). Default check is Jaccard ≥ `threshold`; if `precision_threshold`/`recall_threshold` are set, those replace it. Diff records `jaccard`, `precision`, `recall`, `missing`, `extras`.
+   - `structured_match` → JSON-parses string actuals (e.g. `<answer>{"revenue":383.285}</answer>`); recurses per-field using the rule named in `fields`
 4. **Record** — pass/fail, the diff, and all telemetry land in the sweep JSONL.
 
 The system prompt that asks for `<answer>` tags is at `benchmark/prompts/system.md`.
@@ -102,6 +106,8 @@ The system prompt that asks for `<answer>` tags is at `benchmark/prompts/system.
   - **TESR** (Tool Execution Success Rate) — % of tool calls without error
   - **CER** (Conditional Execution Rate) — % of tool-using runs whose calls all succeeded
 - **Latency** — p50, p95, mean think time, mean tool round-trip time.
+
+If any run hits `MAX_AGENT_TURNS` mid-tool_use, an extra **truncated** column is added to the Accuracy table.
 
 Server-side `web_search` calls are counted in the tool-use metrics with `latency_ms = 0` (Anthropic executes them inside `messages.create`, so the runner can't measure their wall time directly).
 

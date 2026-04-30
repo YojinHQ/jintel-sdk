@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 
 import type { Adapter, AnthropicClientToolDef, ToolInvocation, ToolInvocationResult } from './types.js';
+import { pickEnv } from '../env.js';
 
 export interface JintelCliOptions {
   // When unset, falls back to `npx @yojinhq/jintel-cli`. JINTEL_CLI_BIN_PATH overrides for dev.
@@ -142,11 +143,7 @@ export function createJintelCliAdapter(opts: JintelCliOptions = {}): Adapter {
       const input = call.input as Record<string, unknown>;
       const command = typeof input.command === 'string' ? input.command : '';
 
-      const env: Record<string, string> = {};
-      for (const key of AUTH_ENV_KEYS) {
-        const v = process.env[key];
-        if (v !== undefined) env[key] = v;
-      }
+      const env = pickEnv(AUTH_ENV_KEYS);
       env.PATH = `${tmpDir}:${process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin'}`;
 
       return new Promise<ToolInvocationResult>((resolve) => {

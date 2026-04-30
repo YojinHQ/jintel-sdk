@@ -1,0 +1,13 @@
+id: q-009
+nl_question: |
+  Of AAPL, MSFT, and GOOGL, which company reported the highest annual revenue
+  in their most recent fiscal year that ended on or before 2026-03-31?
+  Answer with the ticker only.
+tags: [multi-entity, financials, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: highest_revenue_fy2025_among_aapl_msft_googl
+  value: "AAPL"
+  unit: ticker
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K
+comparison:
+  type: exact_match

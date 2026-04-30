@@ -1,0 +1,26 @@
+id: q-012
+nl_question: |
+  Provide NVIDIA's fiscal Q4 2026 (the quarter ended January 25, 2026) headline financials
+  as a JSON object with keys revenue (USD billions), netIncome (USD billions), and dilutedEps (USD).
+  Answer like <answer>{"revenue": 0, "netIncome": 0, "dilutedEps": 0}</answer> with the actual numeric values.
+tags: [single-source, financials, structured, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: nvda_q4_fy2026_headline
+  value:
+    revenue: 215.938
+    netIncome: 120.067
+    dilutedEps: 4.90
+  unit: mixed
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001045810&type=10-K
+comparison:
+  type: structured_match
+  fields:
+    revenue:
+      type: numeric_tolerance
+      tolerance_pct: 1.0
+    netIncome:
+      type: numeric_tolerance
+      tolerance_pct: 1.0
+    dilutedEps:
+      type: numeric_tolerance
+      tolerance_pct: 1.0

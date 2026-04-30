@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
 
 import { loadCorpus, selectQueries } from '../corpus-loader.js';
+import { pickEnv } from '../env.js';
 import { runQuery } from '../runners/anthropic.js';
 import { createNoneAdapter } from '../adapters/none.js';
 import { createAnthropicWebSearchAdapter } from '../adapters/anthropic-web-search.js';
@@ -85,8 +86,7 @@ export function parseArgs(argv: string[]): BenchArgs {
   };
 }
 
-// Tokenize a shell-style arg string with single/double-quoted segments and
-// backslash escapes. Used for JINTEL_MCP_ARGS so values can contain spaces.
+// Used for JINTEL_MCP_ARGS so values can contain spaces.
 export function splitShellArgs(input: string): string[] {
   const out: string[] = [];
   let buf = '';
@@ -142,18 +142,14 @@ async function buildAdapter(variant: VariantId): Promise<Adapter> {
     const args = process.env.JINTEL_MCP_ARGS
       ? splitShellArgs(process.env.JINTEL_MCP_ARGS)
       : ['-y', '@yojinhq/jintel-mcp'];
-    const env: Record<string, string> = {};
-    for (const key of [
+    const env = pickEnv([
       'JINTEL_API_KEY',
       'JINTEL_WALLET_PRIVATE_KEY',
       'JINTEL_BASE_URL',
       'JINTEL_X402_MAX_VALUE',
       'PATH',
       'HOME',
-    ]) {
-      const v = process.env[key];
-      if (v !== undefined) env[key] = v;
-    }
+    ]);
     return createJintelMcpAdapter({ command, args, env });
   }
   if (variant === 'jintel-cli') {
@@ -257,6 +253,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
           value: query.expected.value,
           tolerance_pct: query.comparison.tolerance_pct,
           threshold: query.comparison.threshold,
+          precision_threshold: query.comparison.precision_threshold,
+          recall_threshold: query.comparison.recall_threshold,
           fields: query.comparison.fields,
         });
         const record: RunRecord = {

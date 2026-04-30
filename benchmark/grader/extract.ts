@@ -7,19 +7,17 @@ export interface ExtractResult {
 
 const ANSWER_TAG_RE = /<answer>([\s\S]*?)<\/answer>/gi;
 
+function blockToText(block: unknown): string {
+  if (typeof block === 'string') return block;
+  if (block && typeof block === 'object' && 'type' in block && (block as { type: string }).type === 'text') {
+    return (block as unknown as { text: string }).text;
+  }
+  return '';
+}
+
 function turnToText(turn: TranscriptTurn): string {
   if (typeof turn.content === 'string') return turn.content;
-  if (Array.isArray(turn.content)) {
-    return turn.content
-      .map((block) => {
-        if (typeof block === 'string') return block;
-        if (block && typeof block === 'object' && 'type' in block && (block as { type: string }).type === 'text') {
-          return (block as { text: string }).text;
-        }
-        return '';
-      })
-      .join('\n');
-  }
+  if (Array.isArray(turn.content)) return turn.content.map(blockToText).join('\n');
   return '';
 }
 

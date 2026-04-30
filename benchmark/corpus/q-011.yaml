@@ -1,0 +1,26 @@
+id: q-011
+nl_question: |
+  Provide Apple's fiscal Q1 2026 (the quarter ended in late December 2025) headline financials
+  as a JSON object with keys revenue (USD billions), dilutedEps (USD), and grossProfit (USD billions).
+  Answer like <answer>{"revenue": 0, "dilutedEps": 0, "grossProfit": 0}</answer> with the actual numeric values.
+tags: [single-source, financials, structured, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: aapl_q1_fy2026_headline
+  value:
+    revenue: 143.756
+    dilutedEps: 2.84
+    grossProfit: 69.231
+  unit: mixed
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q
+comparison:
+  type: structured_match
+  fields:
+    revenue:
+      type: numeric_tolerance
+      tolerance_pct: 1.0
+    dilutedEps:
+      type: numeric_tolerance
+      tolerance_pct: 1.0
+    grossProfit:
+      type: numeric_tolerance
+      tolerance_pct: 1.0

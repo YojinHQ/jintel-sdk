@@ -29,7 +29,17 @@ export interface RunQueryParams {
   jintelSha?: string;
 }
 
-const MAX_AGENT_TURNS = 10;
+// At 10, ~40% of jintel-cli sweeps were cut off mid-tool_use and scored as failures.
+const MAX_AGENT_TURNS = 20;
+const ANTHROPIC_MAX_RETRIES = 6;
+
+function isServerToolError(content: unknown): content is { error_code?: string } {
+  return (
+    !!content &&
+    typeof content === 'object' &&
+    (content as { type?: string }).type === 'web_search_tool_result_error'
+  );
+}
 
 export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord> {
   const start = Date.now();
@@ -41,6 +51,7 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
   let totalOut = 0;
   let peakContext = 0;
   let toolRoundTripMs = 0;
+  let truncated = false;
 
   const systemPromptTemplate = await loadSystemPrompt();
   const today = new Date().toISOString().slice(0, 10);
@@ -52,13 +63,17 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
   let client: Anthropic;
   try {
     const creds = await getAnthropicCredentials();
-    const maxRetries = 6;
     client =
       creds.kind === 'apiKey'
-        ? new Anthropic({ apiKey: creds.apiKey, maxRetries })
-        : new Anthropic({ apiKey: null, authToken: creds.authToken, defaultHeaders: OAUTH_HEADERS, maxRetries });
+        ? new Anthropic({ apiKey: creds.apiKey, maxRetries: ANTHROPIC_MAX_RETRIES })
+        : new Anthropic({
+            apiKey: null,
+            authToken: creds.authToken,
+            defaultHeaders: OAUTH_HEADERS,
+            maxRetries: ANTHROPIC_MAX_RETRIES,
+          });
   } catch (err) {
-    errors.push({ phase: 'auth', message: String((err as Error).message) });
+    errors.push({ phase: 'auth', message: (err as Error).message });
     return finalize();
   }
 
@@ -134,18 +149,12 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
     }>;
     for (const stu of serverToolUses) {
       const matching = serverToolResults.find((res) => res.tool_use_id === stu.id);
-      const errored =
-        matching &&
-        matching.content &&
-        typeof matching.content === 'object' &&
-        (matching.content as { type?: string }).type === 'web_search_tool_result_error';
+      const errorContent = matching && isServerToolError(matching.content) ? matching.content : null;
       toolCallLog.push({
         name: stu.name ?? 'server_tool_use',
         args: stu.input,
         latency_ms: 0,
-        ...(errored
-          ? { error: String((matching!.content as { error_code?: string }).error_code ?? 'web_search_error') }
-          : {}),
+        ...(errorContent ? { error: errorContent.error_code ?? 'web_search_error' } : {}),
       });
     }
 
@@ -159,10 +168,12 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
     });
     anthropicMessages.push({ role: 'assistant', content: r.content });
 
-    // Anthropic only signals "tools pending" with stop_reason==='tool_use'. Anything else
-    // (end_turn, max_tokens, stop_sequence, refusal) terminates the loop, even if a partial
-    // tool_use block snuck through — invoking it would be unsafe.
+    // Only stop_reason==='tool_use' is safe to dispatch; anything else (incl. partial tool_use under max_tokens) terminates.
     if (r.stop_reason !== 'tool_use' || toolUses.length === 0) {
+      break;
+    }
+    if (turn === MAX_AGENT_TURNS - 1) {
+      truncated = true;
       break;
     }
 
@@ -186,7 +197,7 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
       } catch (err) {
         const elapsed = Date.now() - tStart;
         toolRoundTripMs += elapsed;
-        const message = String((err as Error).message);
+        const message = (err as Error).message;
         toolCallLog.push({ name: tu.name ?? '', args: tu.input, latency_ms: elapsed, error: message });
         toolResults.push({
           type: 'tool_result',
@@ -239,6 +250,7 @@ export async function runQuery(input: RunQueryParams): Promise<UngradedRunRecord
         model_thinking_ms: Math.max(0, totalMs - toolRoundTripMs),
         tool_round_trip_ms: toolRoundTripMs,
       },
+      ...(truncated ? { truncated: true } : {}),
       errors,
     };
   }

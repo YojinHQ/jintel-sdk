@@ -38,7 +38,7 @@ function validate(raw: unknown, file: string): CorpusEntry {
   }
 
   if (r.comparison === undefined || r.comparison === null) {
-    (r as Record<string, unknown>).comparison = autoDetectComparison(exp.value, file);
+    r.comparison = autoDetectComparison(exp.value, file);
   } else {
     if (typeof r.comparison !== 'object') throw new Error(`${file}: comparison must be an object`);
     const cmp = r.comparison as Record<string, unknown>;

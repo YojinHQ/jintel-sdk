@@ -1,0 +1,11 @@
+id: q-002
+nl_question: "What was Apple's diluted EPS for fiscal Q4 2018?"
+tags: [single-source, financials, financebench]
+expected:
+  field: diluted_eps_fy2018_q4
+  value: 2.91
+  unit: USD
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 2.0

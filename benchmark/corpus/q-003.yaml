@@ -1,0 +1,11 @@
+id: q-003
+nl_question: "What was NVIDIA's (NVDA) closing price on 2026-03-31?"
+tags: [live-data, market, post-cutoff, jintel-mcp-favored]
+expected:
+  field: nvda_close_2026_03_31
+  value: 174.40
+  unit: USD
+  source: https://finance.yahoo.com/quote/NVDA/history
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 1.0

@@ -64,6 +64,26 @@ pnpm publish:cli patch
 pnpm publish:mcp patch
 ```
 
+## Benchmark
+
+[`benchmark/`](benchmark/README.md) is a measurement framework that compares
+LLM-with-tools configurations on a corpus of financial-research queries.
+Variants include `bare` (no tools), `anthropic-web-search`, `jintel-mcp` (the
+published `@yojinhq/jintel-mcp`), and `jintel-cli` (the published
+`@yojinhq/jintel-cli` over a `bash` tool).
+
+```bash
+pnpm bench --model claude-haiku-4-5 --variant all
+pnpm bench:report
+```
+
+Latest published results: [`benchmark/results/`](benchmark/results/README.md).
+On the 15-question corpus, Haiku-with-`jintel-mcp` (66.7%) beats Opus-with-web-search
+(60%) at roughly half the latency, and Opus-with-`jintel-mcp` leads at 86.7%.
+
+See [`benchmark/README.md`](benchmark/README.md) for the full CLI, corpus
+schema, and grader rules.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

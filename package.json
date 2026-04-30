@@ -10,7 +10,21 @@
     "test": "pnpm -r --filter './packages/*' test",
     "publish:client": "bash scripts/publish-client.sh",
     "publish:cli": "bash scripts/publish-cli.sh",
-    "publish:mcp": "bash scripts/publish-mcp.sh"
+    "publish:mcp": "bash scripts/publish-mcp.sh",
+    "bench": "tsx benchmark/cli/bench.ts",
+    "bench:report": "tsx benchmark/cli/report.ts",
+    "bench:test": "vitest run --root benchmark",
+    "bench:typecheck": "tsc -p benchmark/tsconfig.json"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "0.91.1",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "ulid": "^3.0.2",
+    "vitest": "^4.1.4",
+    "yaml": "^2.8.3"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

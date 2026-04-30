@@ -1,0 +1,14 @@
+id: q-014
+nl_question: |
+  Which three US-listed companies had the largest market capitalization at the close of 2026-04-01?
+  Answer with a JSON array of their tickers, like <answer>["AAA","BBB","CCC"]</answer>.
+  For issuers with multiple share classes (e.g. Alphabet — GOOG/GOOGL), either ticker is acceptable.
+tags: [multi-entity, market-data, set-overlap, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: top3_us_mcap_2026_04_01
+  value: ["NVDA", "GOOG", "AAPL"]
+  unit: tickers
+  source: https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/
+comparison:
+  type: set_overlap
+  threshold: 0.5

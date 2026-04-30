@@ -1,0 +1,11 @@
+id: q-004
+nl_question: "What was Tesla's (TSLA) closing price on 2026-02-13?"
+tags: [live-data, market, post-cutoff, jintel-mcp-favored]
+expected:
+  field: tsla_close_2026_02_13
+  value: 417.44
+  unit: USD
+  source: https://finance.yahoo.com/quote/TSLA/history
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 1.0

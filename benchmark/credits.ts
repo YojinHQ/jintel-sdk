@@ -21,17 +21,16 @@ export function createCreditClient(opts: { baseUrl: string; apiKey: string }): C
   return {
     async read() {
       try {
+        // Balance endpoint is optional; swallow its errors so /me still resolves.
         const [meRes, balRes] = await Promise.all([
           fetch(`${opts.baseUrl}/api/v1/me`, { headers }),
-          fetch(`${opts.baseUrl}/api/v1/credits/balance`, { headers }),
+          fetch(`${opts.baseUrl}/api/v1/credits/balance`, { headers }).catch(() => null),
         ]);
         if (!meRes.ok) return null;
         const me = (await meRes.json()) as { plan?: { usage?: { monthly?: number } } };
         const planUsed = me.plan?.usage?.monthly ?? 0;
-        // Top-up balance is optional — orgs without x402 top-ups still resolve
-        // fine via /api/v1/me alone, so a 4xx here is non-fatal.
         let topupBalance = 0;
-        if (balRes.ok) {
+        if (balRes?.ok) {
           const bal = (await balRes.json()) as { topupBalanceCredits?: number };
           topupBalance = bal.topupBalanceCredits ?? 0;
         }

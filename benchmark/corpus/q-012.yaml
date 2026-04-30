@@ -1,11 +1,11 @@
 id: q-012
 nl_question: |
-  Provide NVIDIA's fiscal Q4 2026 (the quarter ended January 25, 2026) headline financials
+  Provide NVIDIA's fiscal year 2026 (the year ended January 25, 2026) full-year headline financials
   as a JSON object with keys revenue (USD billions), netIncome (USD billions), and dilutedEps (USD).
   Answer like <answer>{"revenue": 0, "netIncome": 0, "dilutedEps": 0}</answer> with the actual numeric values.
 tags: [single-source, financials, structured, live-data, post-cutoff, jintel-mcp-favored]
 expected:
-  field: nvda_q4_fy2026_headline
+  field: nvda_fy2026_headline
   value:
     revenue: 215.938
     netIncome: 120.067

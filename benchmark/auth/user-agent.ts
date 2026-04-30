@@ -13,8 +13,10 @@ function getPlatformLabel(): string {
       return 'Windows NT 10.0; Win64; x64';
     case 'linux':
       return 'X11; Linux x86_64';
-    default:
+    case 'darwin':
       return 'Macintosh; Intel Mac OS X 10_15_7';
+    default:
+      throw new Error(`Unsupported platform for Chrome UA: ${process.platform}`);
   }
 }
 

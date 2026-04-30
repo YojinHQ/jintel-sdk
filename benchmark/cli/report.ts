@@ -17,8 +17,9 @@ export function parseArgs(argv: string[]): ReportArgs {
 }
 
 // sweep filenames are `sweep-YYYYMMDD-HHMMSS.jsonl` (UTC), so lexical sort = chronological.
+const SWEEP_FILENAME_RE = /^sweep-\d{8}-\d{6}\.jsonl$/;
 function pickFiles(allFiles: string[], includeAll: boolean): string[] {
-  const sweeps = allFiles.filter((f) => f.endsWith('.jsonl')).sort();
+  const sweeps = allFiles.filter((f) => SWEEP_FILENAME_RE.test(f)).sort();
   if (sweeps.length === 0) return [];
   return includeAll ? sweeps : [sweeps[sweeps.length - 1]];
 }
@@ -30,10 +31,16 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   const records: RunRecord[] = [];
   for (const f of files) {
     const text = await readFile(join(RUNS_DIR, f), 'utf-8');
-    for (const line of text.split('\n')) {
-      const t = line.trim();
+    const lines = text.split('\n');
+    for (let idx = 0; idx < lines.length; idx++) {
+      const t = lines[idx].trim();
       if (!t) continue;
-      records.push(JSON.parse(t) as RunRecord);
+      try {
+        records.push(JSON.parse(t) as RunRecord);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[report] skipping invalid JSONL ${f}:${idx + 1} (${msg})`);
+      }
     }
   }
 

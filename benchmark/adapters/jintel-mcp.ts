@@ -19,9 +19,15 @@ export async function createJintelMcpAdapter(opts: JintelMcpOptions): Promise<Ad
   // First-run cold-start can take 30-60s while npx fetches the MCP package and
   // its dep tree. Bump both timeouts well above the SDK's 60s default.
   const COLD_START_TIMEOUT_MS = 5 * 60 * 1000;
-  await client.connect(transport, { timeout: COLD_START_TIMEOUT_MS });
-
-  const listed = await client.listTools(undefined, { timeout: COLD_START_TIMEOUT_MS });
+  let listed: Awaited<ReturnType<typeof client.listTools>>;
+  try {
+    await client.connect(transport, { timeout: COLD_START_TIMEOUT_MS });
+    listed = await client.listTools(undefined, { timeout: COLD_START_TIMEOUT_MS });
+  } catch (err) {
+    // Tear down the stdio subprocess so a listTools failure after connect doesn't leak it.
+    await client.close().catch(() => undefined);
+    throw err;
+  }
   const toolDefs: AnthropicClientToolDef[] = (listed.tools ?? []).map((t) => ({
     name: t.name,
     description: t.description ?? '',

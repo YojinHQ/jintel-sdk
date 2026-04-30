@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -33,8 +33,10 @@ async function readCached(): Promise<CachedToken | null> {
 }
 
 async function writeCached(token: CachedToken): Promise<void> {
-  await mkdir(dirname(TOKEN_FILE), { recursive: true });
-  await writeFile(TOKEN_FILE, JSON.stringify(token, null, 2), 'utf-8');
+  // Bearer + refresh tokens — keep readable only by the owner on shared hosts.
+  await mkdir(dirname(TOKEN_FILE), { recursive: true, mode: 0o700 });
+  await writeFile(TOKEN_FILE, JSON.stringify(token, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  await chmod(TOKEN_FILE, 0o600);
 }
 
 function ask(message: string): Promise<string> {
@@ -74,17 +76,22 @@ export async function getAnthropicCredentials(): Promise<AnthropicCredentials> {
   let cached = await readCached();
   // Refresh 60s before nominal expiry to avoid races with in-flight requests.
   const REFRESH_BUFFER_MS = 60_000;
-  if (cached?.expiresAt && cached.expiresAt - REFRESH_BUFFER_MS < Date.now() && cached.refreshToken) {
-    try {
-      const refreshed = await refreshClaudeOAuthToken(cached.refreshToken);
-      cached = {
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken ?? cached.refreshToken,
-        expiresAt: refreshed.expiresIn ? Date.now() + refreshed.expiresIn * 1000 : undefined,
-      };
-      await writeCached(cached);
-    } catch {
+  if (cached?.expiresAt && cached.expiresAt - REFRESH_BUFFER_MS < Date.now()) {
+    if (!cached.refreshToken) {
+      // Expired and unrefreshable — drop so the caller falls through to interactive login or env-var error.
       cached = null;
+    } else {
+      try {
+        const refreshed = await refreshClaudeOAuthToken(cached.refreshToken);
+        cached = {
+          accessToken: refreshed.accessToken,
+          refreshToken: refreshed.refreshToken ?? cached.refreshToken,
+          expiresAt: refreshed.expiresIn ? Date.now() + refreshed.expiresIn * 1000 : undefined,
+        };
+        await writeCached(cached);
+      } catch {
+        cached = null;
+      }
     }
   }
 

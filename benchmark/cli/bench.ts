@@ -64,17 +64,23 @@ export interface BenchArgs {
 
 export function parseArgs(argv: string[]): BenchArgs {
   const out: Partial<BenchArgs> = {};
+  const readValue = (flag: string, value: string | undefined): string => {
+    if (value === undefined || value.startsWith('--')) {
+      throw new Error(`${flag} requires a value`);
+    }
+    return value;
+  };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const next = argv[i + 1];
     if (flag === '--model') {
-      out.model = next;
+      out.model = readValue('--model', next);
       i++;
     } else if (flag === '--queries') {
-      out.queries = next;
+      out.queries = readValue('--queries', next);
       i++;
     } else if (flag === '--variant') {
-      out.variant = next;
+      out.variant = readValue('--variant', next);
       i++;
     }
   }
@@ -129,6 +135,9 @@ export function splitShellArgs(input: string): string[] {
     }
     buf += ch;
     i++;
+  }
+  if (quote !== null) {
+    throw new Error('Unclosed quote in JINTEL_MCP_ARGS');
   }
   if (buf.length > 0) out.push(buf);
   return out;

@@ -36,7 +36,7 @@ pnpm bench --model claude-opus-4-7 --variant all
 pnpm bench:report --all
 ```
 
-Numbers will drift run-to-run for the live-data queries (q-003 through q-008) since they reference dates that have since moved further into the past — re-grading against a different "today" will change which sources still surface the right answer.
+Numbers will drift run-to-run for the live-data queries (q-003 through q-008, q-012, and q-015) since they reference dates that have since moved further into the past — re-grading against a different "today" will change which sources still surface the right answer.
 
 ## Adding a new result
 

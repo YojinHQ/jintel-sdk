@@ -43,6 +43,19 @@ function validate(raw: unknown, file: string): CorpusEntry {
     if (typeof r.comparison !== 'object') throw new Error(`${file}: comparison must be an object`);
     const cmp = r.comparison as Record<string, unknown>;
     if (typeof cmp.type !== 'string') throw new Error(`${file}: comparison.type missing`);
+    const allowed = new Set(['exact_match', 'numeric_tolerance', 'set_overlap', 'structured_match']);
+    if (!allowed.has(cmp.type)) {
+      throw new Error(`${file}: comparison.type must be one of ${[...allowed].join(', ')}`);
+    }
+    if (cmp.type === 'structured_match') {
+      if (
+        typeof cmp.fields !== 'object' ||
+        cmp.fields === null ||
+        Object.keys(cmp.fields as Record<string, unknown>).length === 0
+      ) {
+        throw new Error(`${file}: structured_match requires non-empty comparison.fields`);
+      }
+    }
   }
   return raw as CorpusEntry;
 }

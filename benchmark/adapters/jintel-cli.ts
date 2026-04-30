@@ -142,13 +142,36 @@ export function createJintelCliAdapter(opts: JintelCliOptions = {}): Adapter {
 
       const input = call.input as Record<string, unknown>;
       const command = typeof input.command === 'string' ? input.command : '';
+      if (!command.trim()) {
+        return {
+          content: '[jintel-cli] invalid tool input: `command` must be a non-empty string',
+          is_error: true,
+          latency_ms: Date.now() - start,
+        };
+      }
 
       const env = pickEnv(AUTH_ENV_KEYS);
       env.PATH = `${tmpDir}:${process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin'}`;
 
       return new Promise<ToolInvocationResult>((resolve) => {
         let output = '';
+        let truncated = false;
         let settled = false;
+
+        // Cap accumulation as chunks arrive so a noisy command can't blow out memory before timeout.
+        const appendOutput = (text: string) => {
+          if (output.length >= outputCap) {
+            truncated = true;
+            return;
+          }
+          const remaining = outputCap - output.length;
+          if (text.length > remaining) {
+            output += text.slice(0, remaining);
+            truncated = true;
+          } else {
+            output += text;
+          }
+        };
 
         const child = spawn('bash', ['-c', command], { env });
 
@@ -158,11 +181,9 @@ export function createJintelCliAdapter(opts: JintelCliOptions = {}): Adapter {
           clearTimeout(timer);
 
           let content = output;
-          if (content.length > outputCap) {
-            const extra = content.length - outputCap;
-            content =
-              content.slice(0, outputCap) +
-              `\n…(truncated, ${extra} more chars — output exceeded ${outputCap}-char cap. ` +
+          if (truncated) {
+            content +=
+              `\n…(truncated — output exceeded ${outputCap}-char cap. ` +
               `Re-run with a tighter \`jq\` filter (e.g. select a single record or fields) ` +
               `to avoid mid-JSON truncation that breaks downstream parsing.)`;
           }
@@ -180,21 +201,17 @@ export function createJintelCliAdapter(opts: JintelCliOptions = {}): Adapter {
         const timer = setTimeout(() => {
           if (!settled) {
             child.kill('SIGTERM');
-            output += '\n[jintel-cli] Command timed out after ' + timeoutMs + 'ms';
+            appendOutput('\n[jintel-cli] Command timed out after ' + timeoutMs + 'ms');
             finish(null, 'SIGTERM');
           }
         }, timeoutMs);
 
-        child.stdout.on('data', (chunk: Buffer) => {
-          output += chunk.toString();
-        });
-        child.stderr.on('data', (chunk: Buffer) => {
-          output += chunk.toString();
-        });
+        child.stdout.on('data', (chunk: Buffer) => appendOutput(chunk.toString()));
+        child.stderr.on('data', (chunk: Buffer) => appendOutput(chunk.toString()));
 
         child.on('close', (code, signal) => finish(code, signal));
         child.on('error', (err) => {
-          output += `\n[jintel-cli] spawn error: ${err.message}`;
+          appendOutput(`\n[jintel-cli] spawn error: ${err.message}`);
           finish(1, null);
         });
       });

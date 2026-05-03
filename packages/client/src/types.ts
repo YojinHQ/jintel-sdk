@@ -552,9 +552,30 @@ export const RedditCommentSchema = z.object({
 });
 export type RedditComment = z.infer<typeof RedditCommentSchema>;
 
+export const TweetSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  authorId: z.string().nullable().optional(),
+  authorUsername: z.string().nullable().optional(),
+  /** Author display name when twit.sh provides it. */
+  authorName: z.string().nullable().optional(),
+  /** ISO 8601 creation timestamp. */
+  createdAt: z.string().nullable().optional(),
+  /** Twitter v2 public_metrics — null when upstream omits the block. */
+  likeCount: z.number().nullable().optional(),
+  retweetCount: z.number().nullable().optional(),
+  replyCount: z.number().nullable().optional(),
+  quoteCount: z.number().nullable().optional(),
+  isRetweet: z.boolean(),
+  isQuote: z.boolean(),
+  isReply: z.boolean(),
+});
+export type Tweet = z.infer<typeof TweetSchema>;
+
 export const SocialSchema = z.object({
   reddit: z.array(RedditPostSchema).optional(),
   redditComments: z.array(RedditCommentSchema).optional(),
+  twitter: z.array(TweetSchema).optional(),
 });
 export type Social = z.infer<typeof SocialSchema>;
 

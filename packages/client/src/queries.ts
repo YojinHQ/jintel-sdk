@@ -255,6 +255,21 @@ export const SOCIAL_FIELDS = `
       parentId
       postId
     }
+    twitter {
+      id
+      text
+      authorId
+      authorUsername
+      authorName
+      createdAt
+      likeCount
+      retweetCount
+      replyCount
+      quoteCount
+      isRetweet
+      isQuote
+      isReply
+    }
   }`;
 
 export const PREDICTIONS_FIELDS = `
@@ -1158,7 +1173,7 @@ const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
 /** Filtered variants of array sub-graph field blocks (top-level Entity fields only). */
 const FILTERED_FIELD_BLOCK_MAP: Partial<Record<EnrichmentField, string>> = {
   research: `research(filter: $filter) {\n    title\n    url\n    publishedDate\n    author\n    text\n    score\n  }`,
-  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n  }`,
+  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n    twitter {\n      id\n      text\n      authorId\n      authorUsername\n      authorName\n      createdAt\n      likeCount\n      retweetCount\n      replyCount\n      quoteCount\n      isRetweet\n      isQuote\n      isReply\n    }\n  }`,
   earningsPressReleases: `earningsPressReleases(filter: $filter) {\n    accessionNumber\n    filingDate\n    reportDate\n    items\n    filingUrl\n    pressReleaseUrl\n    body\n    excerpt\n    bodyLength\n    guidance { text metric period direction }\n  }`,
   periodicFilings: `periodicFilings(filter: $filter) {\n    accessionNumber\n    form\n    filingDate\n    reportDate\n    filingUrl\n    documentUrl\n    sections {\n      item\n      title\n      body\n      excerpt\n      bodyLength\n    }\n  }`,
 };

@@ -87,6 +87,7 @@ export {
   // Social Media
   RedditPostSchema,
   RedditCommentSchema,
+  TweetSchema,
   SocialSchema,
   // SEC Form 4 / 8-K / XBRL Segments
   InsiderTradeSchema,
@@ -164,6 +165,7 @@ export type {
   KeyExecutive,
   RedditPost,
   RedditComment,
+  Tweet,
   Social,
   InsiderTrade,
   EarningsPressRelease,
@@ -191,6 +193,7 @@ export type {
   FuturesCurveFilterOptions,
   OptionsChainFilterOptions,
   NewsFilterOptions,
+  TwitterFilterOptions,
   ExecutivesFilterOptions,
   InsiderTradeFilterOptions,
   EarningsFilterOptions,

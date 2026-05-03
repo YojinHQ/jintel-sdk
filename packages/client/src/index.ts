@@ -193,6 +193,7 @@ export type {
   FuturesCurveFilterOptions,
   OptionsChainFilterOptions,
   NewsFilterOptions,
+  TwitterFilterOptions,
   ExecutivesFilterOptions,
   InsiderTradeFilterOptions,
   EarningsFilterOptions,

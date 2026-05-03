@@ -37,6 +37,61 @@ describe('buildEnrichQuery', () => {
     expect(query).toContain('news(filter: $newsFilter)');
   });
 
+  it('social.twitter uses TwitterFilterInput when twitterFilter is set', () => {
+    const query = buildEnrichQuery(['social'], { twitterFilter: { cashtags: ['AAPL'], minLikes: 10 } });
+    expect(query).toContain('$twitterFilter: TwitterFilterInput');
+    expect(query).toContain('twitter(filter: $twitterFilter)');
+  });
+
+  it('social fields without twitterFilter omit the twitter filter arg', () => {
+    const query = buildEnrichQuery(['social']);
+    expect(query).not.toContain('$twitterFilter');
+    expect(query).toMatch(/twitter\s*\{/);
+  });
+
+  it('social can carry both ArrayFilterInput (reddit) and TwitterFilterInput (twitter) at once', () => {
+    const query = buildEnrichQuery(['social'], {
+      filter: { since: '2025-01-01', limit: 5 },
+      twitterFilter: { cashtags: ['AAPL'], excludeRetweets: true },
+    });
+    expect(query).toContain('$filter: ArrayFilterInput');
+    expect(query).toContain('$twitterFilter: TwitterFilterInput');
+    expect(query).toContain('reddit(filter: $filter)');
+    expect(query).toContain('redditComments(filter: $filter)');
+    expect(query).toContain('twitter(filter: $twitterFilter)');
+  });
+
+  it('TwitterFilterInput var is omitted when social is not in the selection', () => {
+    const query = buildEnrichQuery(['news'], { twitterFilter: { cashtags: ['AAPL'] } });
+    expect(query).not.toContain('$twitterFilter');
+  });
+
+  it('all TwitterFilterOptions fields trigger the filter flag', () => {
+    const fields = [
+      { words: ['x'] },
+      { phrase: 'p' },
+      { anyWords: ['x'] },
+      { noneWords: ['x'] },
+      { hashtags: ['x'] },
+      { cashtags: ['x'] },
+      { fromUser: 'x' },
+      { toUser: 'x' },
+      { mentioning: 'x' },
+      { minLikes: 1 },
+      { minReposts: 1 },
+      { minReplies: 1 },
+      { since: '2025-01-01' },
+      { until: '2025-01-02' },
+      { excludeRetweets: true },
+      { excludeReplies: true },
+      { limit: 5 },
+    ];
+    for (const twitterFilter of fields) {
+      const query = buildEnrichQuery(['social'], { twitterFilter });
+      expect(query, `field ${JSON.stringify(twitterFilter)}`).toContain('$twitterFilter: TwitterFilterInput');
+    }
+  });
+
   it('generic filter alone does not thread into news/insiderTrades/earnings/segmentedRevenue (those take domain inputs)', () => {
     const query = buildEnrichQuery(['news', 'insiderTrades', 'earnings', 'segmentedRevenue'], {
       since: '2024-01-01',

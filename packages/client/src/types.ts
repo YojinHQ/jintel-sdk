@@ -1476,6 +1476,54 @@ export interface NewsFilterOptions extends ArraySubGraphOptions {
   maxSentiment?: number;
 }
 
+/**
+ * Filter for `Social.twitter` (TwitterFilterInput).
+ *
+ * Translated server-side into structured twit.sh query parameters; callers
+ * never write raw v2 operator DSL. When omitted, the server defaults to
+ * `cashtags: [<entity primary ticker>]`.
+ *
+ * Doesn't extend `ArraySubGraphOptions` because twit.sh has no `sort` arg
+ * (results are already newest-first per the sub-graphs.md contract) and
+ * `limit` clamps to twit.sh's fixed page size of 20.
+ */
+export interface TwitterFilterOptions {
+  /** All these words must appear in the tweet (joined with AND). */
+  words?: string[];
+  /** Exact phrase match. */
+  phrase?: string;
+  /** Any of these words must appear (joined with OR). */
+  anyWords?: string[];
+  /** Exclude tweets containing any of these words. */
+  noneWords?: string[];
+  /** Hashtags without leading `#`. */
+  hashtags?: string[];
+  /** Cashtags without leading `$` (uppercased automatically). Defaults to entity ticker when omitted. */
+  cashtags?: string[];
+  /** Tweets from this username (no `@`). */
+  fromUser?: string;
+  /** Tweets replying to this username (no `@`). */
+  toUser?: string;
+  /** Tweets mentioning this username (no `@`). */
+  mentioning?: string;
+  /** Minimum like count. */
+  minLikes?: number;
+  /** Minimum retweet count. */
+  minReposts?: number;
+  /** Minimum reply count. */
+  minReplies?: number;
+  /** ISO 8601 lower bound (inclusive). twit.sh covers a recent window only. */
+  since?: string;
+  /** ISO 8601 upper bound (exclusive). */
+  until?: string;
+  /** Drop retweets from results (default true when filter is omitted server-side). */
+  excludeRetweets?: boolean;
+  /** Drop reply tweets from results. */
+  excludeReplies?: boolean;
+  /** Cap result count (1–20; twit.sh page size). */
+  limit?: number;
+}
+
 /** Filter for `Entity.executives` (ExecutivesFilterInput). */
 export interface ExecutivesFilterOptions {
   /** Only return executives with annual pay >= this amount (USD). Null pay values are excluded when set. */
@@ -1694,6 +1742,8 @@ export interface EnrichOptions {
   optionsFilter?: OptionsChainFilterOptions;
   /** Filter for `Entity.news`. */
   newsFilter?: NewsFilterOptions;
+  /** Filter for `Social.twitter`. When omitted, server defaults to the entity's primary ticker as a cashtag. */
+  twitterFilter?: TwitterFilterOptions;
   /** Filter for `Entity.executives`. */
   executivesFilter?: ExecutivesFilterOptions;
   /** Filter for `Entity.insiderTrades`. */

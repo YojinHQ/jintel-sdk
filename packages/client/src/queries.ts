@@ -23,6 +23,7 @@ import type {
   SanctionsFilterOptions,
   SegmentRevenueFilterOptions,
   TopHoldersFilterOptions,
+  TwitterFilterOptions,
 } from './types.js';
 
 // ── Field Fragments ────────────────────────────────────────────────────────
@@ -952,6 +953,29 @@ function hasNewsFilter(f: NewsFilterOptions | undefined): boolean {
   return f.minSentiment != null || f.maxSentiment != null;
 }
 
+function hasTwitterFilter(f: TwitterFilterOptions | undefined): boolean {
+  if (!f) return false;
+  const arrayFields: Array<keyof TwitterFilterOptions> = ['words', 'anyWords', 'noneWords', 'hashtags', 'cashtags'];
+  for (const k of arrayFields) {
+    const v = f[k];
+    if (Array.isArray(v) && v.length > 0) return true;
+  }
+  return (
+    f.phrase != null ||
+    f.fromUser != null ||
+    f.toUser != null ||
+    f.mentioning != null ||
+    f.minLikes != null ||
+    f.minReposts != null ||
+    f.minReplies != null ||
+    f.since != null ||
+    f.until != null ||
+    f.excludeRetweets != null ||
+    f.excludeReplies != null ||
+    f.limit != null
+  );
+}
+
 function hasExecutivesFilter(f: ExecutivesFilterOptions | undefined): boolean {
   if (!f) return false;
   return f.minPay != null || f.limit != null || f.sortBy != null;
@@ -1112,6 +1136,7 @@ interface BuildFlags {
   hasLitigationFilter: boolean;
   hasGovernmentContractsFilter: boolean;
   hasRelationshipsFilter: boolean;
+  hasTwitterFilter: boolean;
 }
 
 /** Inline `(filter: $varName)` onto a nested field inside an aggregate block. */
@@ -1159,6 +1184,26 @@ function financialsBlock(hasStatementsFilter: boolean): string {
   block = withFilterArg(block, 'income', 'financialStatementsFilter');
   block = withFilterArg(block, 'balanceSheet', 'financialStatementsFilter');
   block = withFilterArg(block, 'cashFlow', 'financialStatementsFilter');
+  return block;
+}
+
+/**
+ * social sub-graph — three inner sub-fields take different filter inputs:
+ *   - reddit / redditComments: ArrayFilterInput (`$filter`)
+ *   - twitter:                 TwitterFilterInput (`$twitterFilter`)
+ *
+ * Each filter is independently optional; we splice in `(filter: $...)` only
+ * when the matching flag is set so the GraphQL document stays minimal.
+ */
+function socialBlock(hasArrayFilter: boolean, hasTwitterFlag: boolean): string {
+  let block = SOCIAL_FIELDS.trim();
+  if (hasArrayFilter) {
+    block = withFilterArg(block, 'reddit', 'filter');
+    block = withFilterArg(block, 'redditComments', 'filter');
+  }
+  if (hasTwitterFlag) {
+    block = withFilterArg(block, 'twitter', 'twitterFilter');
+  }
   return block;
 }
 
@@ -1273,6 +1318,8 @@ function blockFor(field: EnrichmentField, flags: BuildFlags): string {
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
       return SENTIMENT_FIELDS.trim();
+    case 'social':
+      return socialBlock(flags.hasFilter, flags.hasTwitterFilter);
     case 'analyst':
       return ANALYST_FIELDS.trim();
     case 'ownership':
@@ -1362,6 +1409,7 @@ function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
     vars += ', $governmentContractsFilter: GovernmentContractFilterInput';
   if (flags.hasRelationshipsFilter && fields.includes('relationships'))
     vars += ', $relationshipsFilter: RelationshipFilterInput';
+  if (flags.hasTwitterFilter && fields.includes('social')) vars += ', $twitterFilter: TwitterFilterInput';
   return vars;
 }
 
@@ -1395,6 +1443,7 @@ function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlag
       ? hasGovernmentContractsFilter(options.governmentContractsFilter)
       : false,
     hasRelationshipsFilter: enriched ? hasRelationshipsFilter(options.relationshipsFilter) : false,
+    hasTwitterFilter: enriched ? hasTwitterFilter(options.twitterFilter) : false,
   };
 }
 
@@ -1462,6 +1511,7 @@ const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
   'litigationFilter',
   'governmentContractsFilter',
   'relationshipsFilter',
+  'twitterFilter',
 ];
 
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {

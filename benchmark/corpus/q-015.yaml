@@ -1,0 +1,16 @@
+id: q-015
+nl_question: |
+  Which of the following entities are designated on the U.S. OFAC Specially Designated Nationals (SDN) list
+  as of 2026-04-01: Wagner Group, Apple Inc, Sberbank, Berkshire Hathaway, VTB Bank?
+  Answer with a JSON array of just the entity names that are on the SDN list, like
+  <answer>["Name 1","Name 2"]</answer>.
+tags: [sanctions, multi-entity, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: ofac_sdn_subset_2026_04_01
+  value: ["Wagner Group", "Sberbank", "VTB Bank"]
+  unit: entities
+  source: https://sanctionssearch.ofac.treas.gov/
+comparison:
+  type: set_overlap
+  precision_threshold: 1.0
+  recall_threshold: 1.0

@@ -1,0 +1,11 @@
+id: q-007
+nl_question: "What was the S&P 500 trailing twelve-month P/E ratio for March 2026 (per multpl.com's monthly series)?"
+tags: [live-data, macro, post-cutoff]
+expected:
+  field: sp500_ttm_pe_march_2026
+  value: 28.43
+  unit: ratio
+  source: https://www.multpl.com/s-p-500-pe-ratio/table/by-month
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 5.0

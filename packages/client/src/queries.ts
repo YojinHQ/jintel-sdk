@@ -23,6 +23,7 @@ import type {
   SanctionsFilterOptions,
   SegmentRevenueFilterOptions,
   TopHoldersFilterOptions,
+  TwitterFilterOptions,
 } from './types.js';
 
 // ── Field Fragments ────────────────────────────────────────────────────────
@@ -255,6 +256,21 @@ export const SOCIAL_FIELDS = `
       parentId
       postId
     }
+    twitter {
+      id
+      text
+      authorId
+      authorUsername
+      authorName
+      createdAt
+      likeCount
+      retweetCount
+      replyCount
+      quoteCount
+      isRetweet
+      isQuote
+      isReply
+    }
   }`;
 
 export const PREDICTIONS_FIELDS = `
@@ -285,100 +301,86 @@ export const DISCUSSIONS_FIELDS = `
     topComments { author text points }
   }`;
 
+const FINANCIAL_STATEMENT_FIELDS = `
+      periodEnding
+      periodType
+
+      totalRevenue
+      costOfRevenue
+      grossProfit
+      researchAndDevelopment
+      sellingGeneralAndAdmin
+      operatingExpense
+      operatingIncome
+      ebit
+      ebitda
+      interestExpense
+      interestIncome
+      otherIncomeExpense
+      pretaxIncome
+      taxProvision
+      netIncome
+      basicEps
+      dilutedEps
+
+      totalAssets
+      currentAssets
+      cashAndEquivalents
+      accountsReceivable
+      inventory
+      otherCurrentAssets
+      netPPE
+      grossPPE
+      accumulatedDepreciation
+      goodwill
+      otherIntangibleAssets
+      longTermInvestments
+      otherNonCurrentAssets
+      netTangibleAssets
+
+      totalLiabilities
+      currentLiabilities
+      accountsPayable
+      currentDebt
+      otherCurrentLiabilities
+      longTermDebt
+      otherNonCurrentLiabilities
+      totalDebt
+      netDebt
+      totalEquity
+      commonStockEquity
+      preferredStockEquity
+      retainedEarnings
+      treasurySharesNumber
+      treasuryStockValue
+      minorityInterest
+      workingCapital
+      investedCapital
+
+      operatingCashFlow
+      investingCashFlow
+      financingCashFlow
+      freeCashFlow
+      capitalExpenditure
+      depreciationAmortization
+      changeInWorkingCapital
+      stockBasedCompensation
+      dividendsPaid
+      repurchaseOfCapitalStock
+      issuanceOfCapitalStock
+      repaymentOfDebt
+      issuanceOfDebt
+      netBusinessPurchaseAndSale
+      beginningCashPosition
+      endingCashPosition`;
+
 export const FINANCIALS_FIELDS = `
   financials {
-    income {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    income {${FINANCIAL_STATEMENT_FIELDS}
     }
-    balanceSheet {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    balanceSheet {${FINANCIAL_STATEMENT_FIELDS}
     }
-    cashFlow {
-      periodEnding
-      periodType
-      totalRevenue
-      costOfRevenue
-      grossProfit
-      researchAndDevelopment
-      sellingGeneralAndAdmin
-      operatingExpense
-      operatingIncome
-      ebit
-      ebitda
-      netIncome
-      basicEps
-      dilutedEps
-      totalAssets
-      totalLiabilities
-      totalEquity
-      cashAndEquivalents
-      totalDebt
-      currentAssets
-      currentLiabilities
-      retainedEarnings
-      operatingCashFlow
-      investingCashFlow
-      financingCashFlow
-      freeCashFlow
-      capitalExpenditure
-      dividendsPaid
-      stockBasedCompensation
+    cashFlow {${FINANCIAL_STATEMENT_FIELDS}
     }
   }`;
 
@@ -978,6 +980,29 @@ function hasNewsFilter(f: NewsFilterOptions | undefined): boolean {
   return f.minSentiment != null || f.maxSentiment != null;
 }
 
+function hasTwitterFilter(f: TwitterFilterOptions | undefined): boolean {
+  if (!f) return false;
+  const arrayFields: Array<keyof TwitterFilterOptions> = ['words', 'anyWords', 'noneWords', 'hashtags', 'cashtags'];
+  for (const k of arrayFields) {
+    const v = f[k];
+    if (Array.isArray(v) && v.length > 0) return true;
+  }
+  return (
+    f.phrase != null ||
+    f.fromUser != null ||
+    f.toUser != null ||
+    f.mentioning != null ||
+    f.minLikes != null ||
+    f.minReposts != null ||
+    f.minReplies != null ||
+    f.since != null ||
+    f.until != null ||
+    f.excludeRetweets != null ||
+    f.excludeReplies != null ||
+    f.limit != null
+  );
+}
+
 function hasExecutivesFilter(f: ExecutivesFilterOptions | undefined): boolean {
   if (!f) return false;
   return f.minPay != null || f.limit != null || f.sortBy != null;
@@ -1138,6 +1163,7 @@ interface BuildFlags {
   hasLitigationFilter: boolean;
   hasGovernmentContractsFilter: boolean;
   hasRelationshipsFilter: boolean;
+  hasTwitterFilter: boolean;
 }
 
 /** Inline `(filter: $varName)` onto a nested field inside an aggregate block. */
@@ -1188,6 +1214,26 @@ function financialsBlock(hasStatementsFilter: boolean): string {
   return block;
 }
 
+/**
+ * social sub-graph — three inner sub-fields take different filter inputs:
+ *   - reddit / redditComments: ArrayFilterInput (`$filter`)
+ *   - twitter:                 TwitterFilterInput (`$twitterFilter`)
+ *
+ * Each filter is independently optional; we splice in `(filter: $...)` only
+ * when the matching flag is set so the GraphQL document stays minimal.
+ */
+function socialBlock(hasArrayFilter: boolean, hasTwitterFlag: boolean): string {
+  let block = SOCIAL_FIELDS.trim();
+  if (hasArrayFilter) {
+    block = withFilterArg(block, 'reddit', 'filter');
+    block = withFilterArg(block, 'redditComments', 'filter');
+  }
+  if (hasTwitterFlag) {
+    block = withFilterArg(block, 'twitter', 'twitterFilter');
+  }
+  return block;
+}
+
 /** Fields that accept the top-level ArrayFilterInput arg directly on Entity. */
 const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
   'research',
@@ -1199,7 +1245,7 @@ const ARRAY_SUBGRAPH_FIELDS = new Set<EnrichmentField>([
 /** Filtered variants of array sub-graph field blocks (top-level Entity fields only). */
 const FILTERED_FIELD_BLOCK_MAP: Partial<Record<EnrichmentField, string>> = {
   research: `research(filter: $filter) {\n    title\n    url\n    publishedDate\n    author\n    text\n    score\n  }`,
-  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n  }`,
+  social: `social {\n    reddit(filter: $filter) {\n      id\n      title\n      subreddit\n      author\n      score\n      numComments\n      url\n      text\n      date\n      isLinkPost\n      linkDomain\n    }\n    redditComments(filter: $filter) {\n      id\n      body\n      author\n      subreddit\n      score\n      date\n      parentId\n      postId\n    }\n    twitter {\n      id\n      text\n      authorId\n      authorUsername\n      authorName\n      createdAt\n      likeCount\n      retweetCount\n      replyCount\n      quoteCount\n      isRetweet\n      isQuote\n      isReply\n    }\n  }`,
   earningsPressReleases: `earningsPressReleases(filter: $filter) {\n    accessionNumber\n    filingDate\n    reportDate\n    items\n    filingUrl\n    pressReleaseUrl\n    body\n    excerpt\n    bodyLength\n    guidance { text metric period direction }\n  }`,
   periodicFilings: `periodicFilings(filter: $filter) {\n    accessionNumber\n    form\n    filingDate\n    reportDate\n    filingUrl\n    documentUrl\n    sections {\n      item\n      title\n      body\n      excerpt\n      bodyLength\n    }\n  }`,
 };
@@ -1299,6 +1345,8 @@ function blockFor(field: EnrichmentField, flags: BuildFlags): string {
       return TECHNICALS_FIELDS.trim();
     case 'sentiment':
       return SENTIMENT_FIELDS.trim();
+    case 'social':
+      return socialBlock(flags.hasFilter, flags.hasTwitterFilter);
     case 'analyst':
       return ANALYST_FIELDS.trim();
     case 'ownership':
@@ -1388,6 +1436,7 @@ function extraVarDecls(fields: EnrichmentField[], flags: BuildFlags): string {
     vars += ', $governmentContractsFilter: GovernmentContractFilterInput';
   if (flags.hasRelationshipsFilter && fields.includes('relationships'))
     vars += ', $relationshipsFilter: RelationshipFilterInput';
+  if (flags.hasTwitterFilter && fields.includes('social')) vars += ', $twitterFilter: TwitterFilterInput';
   return vars;
 }
 
@@ -1421,6 +1470,7 @@ function computeFlags(options?: EnrichOptions | ArraySubGraphOptions): BuildFlag
       ? hasGovernmentContractsFilter(options.governmentContractsFilter)
       : false,
     hasRelationshipsFilter: enriched ? hasRelationshipsFilter(options.relationshipsFilter) : false,
+    hasTwitterFilter: enriched ? hasTwitterFilter(options.twitterFilter) : false,
   };
 }
 
@@ -1488,6 +1538,7 @@ const ENRICH_OPTION_KEYS: Array<keyof EnrichOptions> = [
   'litigationFilter',
   'governmentContractsFilter',
   'relationshipsFilter',
+  'twitterFilter',
 ];
 
 function isEnrichOptions(opts: unknown): opts is EnrichOptions {

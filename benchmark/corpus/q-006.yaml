@@ -1,0 +1,11 @@
+id: q-006
+nl_question: "What was Microsoft's (MSFT) diluted EPS for fiscal Q2 2026 (the quarter ended 2025-12-31)?"
+tags: [live-data, financials, post-cutoff, jintel-mcp-favored]
+expected:
+  field: msft_diluted_eps_fy2026_q2
+  value: "$5.16"
+  unit: USD
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000789019&type=10-Q
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 2.0

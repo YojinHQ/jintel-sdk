@@ -1,0 +1,8 @@
+id: q-001
+nl_question: "What was 3M's year-end FY2018 net property, plant, and equipment (PP&E) in USD billions?"
+tags: [single-source, financials, financebench]
+expected:
+  field: net_ppne_fy2018
+  value: 8.70
+  unit: USD_billions
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000066740

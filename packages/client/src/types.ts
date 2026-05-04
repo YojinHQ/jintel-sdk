@@ -552,44 +552,113 @@ export const RedditCommentSchema = z.object({
 });
 export type RedditComment = z.infer<typeof RedditCommentSchema>;
 
+export const TweetSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  authorId: z.string().nullable().optional(),
+  authorUsername: z.string().nullable().optional(),
+  /** Author display name when twit.sh provides it. */
+  authorName: z.string().nullable().optional(),
+  /** ISO 8601 creation timestamp. */
+  createdAt: z.string().nullable().optional(),
+  /** Twitter v2 public_metrics — null when upstream omits the block. */
+  likeCount: z.number().nullable().optional(),
+  retweetCount: z.number().nullable().optional(),
+  replyCount: z.number().nullable().optional(),
+  quoteCount: z.number().nullable().optional(),
+  isRetweet: z.boolean(),
+  isQuote: z.boolean(),
+  isReply: z.boolean(),
+});
+export type Tweet = z.infer<typeof TweetSchema>;
+
 export const SocialSchema = z.object({
   reddit: z.array(RedditPostSchema).optional(),
   redditComments: z.array(RedditCommentSchema).optional(),
+  twitter: z.array(TweetSchema).optional(),
 });
 export type Social = z.infer<typeof SocialSchema>;
 
 // ── Financial Statements ────────────────────────────────────────────────
 
+const num = z.number().nullable().optional();
+
 export const FinancialStatementSchema = z.object({
   periodEnding: z.string(),
   periodType: z.string().nullable().optional(),
-  totalRevenue: z.number().nullable().optional(),
-  costOfRevenue: z.number().nullable().optional(),
-  grossProfit: z.number().nullable().optional(),
-  researchAndDevelopment: z.number().nullable().optional(),
-  sellingGeneralAndAdmin: z.number().nullable().optional(),
-  operatingExpense: z.number().nullable().optional(),
-  operatingIncome: z.number().nullable().optional(),
-  ebit: z.number().nullable().optional(),
-  ebitda: z.number().nullable().optional(),
-  netIncome: z.number().nullable().optional(),
-  basicEps: z.number().nullable().optional(),
-  dilutedEps: z.number().nullable().optional(),
-  totalAssets: z.number().nullable().optional(),
-  totalLiabilities: z.number().nullable().optional(),
-  totalEquity: z.number().nullable().optional(),
-  cashAndEquivalents: z.number().nullable().optional(),
-  totalDebt: z.number().nullable().optional(),
-  currentAssets: z.number().nullable().optional(),
-  currentLiabilities: z.number().nullable().optional(),
-  retainedEarnings: z.number().nullable().optional(),
-  operatingCashFlow: z.number().nullable().optional(),
-  investingCashFlow: z.number().nullable().optional(),
-  financingCashFlow: z.number().nullable().optional(),
-  freeCashFlow: z.number().nullable().optional(),
-  capitalExpenditure: z.number().nullable().optional(),
-  dividendsPaid: z.number().nullable().optional(),
-  stockBasedCompensation: z.number().nullable().optional(),
+
+  // Income statement
+  totalRevenue: num,
+  costOfRevenue: num,
+  grossProfit: num,
+  researchAndDevelopment: num,
+  sellingGeneralAndAdmin: num,
+  operatingExpense: num,
+  operatingIncome: num,
+  ebit: num,
+  ebitda: num,
+  interestExpense: num,
+  interestIncome: num,
+  otherIncomeExpense: num,
+  pretaxIncome: num,
+  taxProvision: num,
+  netIncome: num,
+  basicEps: num,
+  dilutedEps: num,
+
+  // Balance sheet — assets
+  totalAssets: num,
+  currentAssets: num,
+  cashAndEquivalents: num,
+  accountsReceivable: num,
+  inventory: num,
+  otherCurrentAssets: num,
+  netPPE: num,
+  grossPPE: num,
+  accumulatedDepreciation: num,
+  goodwill: num,
+  otherIntangibleAssets: num,
+  longTermInvestments: num,
+  otherNonCurrentAssets: num,
+  netTangibleAssets: num,
+
+  // Balance sheet — liabilities & equity
+  totalLiabilities: num,
+  currentLiabilities: num,
+  accountsPayable: num,
+  currentDebt: num,
+  otherCurrentLiabilities: num,
+  longTermDebt: num,
+  otherNonCurrentLiabilities: num,
+  totalDebt: num,
+  netDebt: num,
+  totalEquity: num,
+  commonStockEquity: num,
+  preferredStockEquity: num,
+  retainedEarnings: num,
+  treasurySharesNumber: num,
+  treasuryStockValue: num,
+  minorityInterest: num,
+  workingCapital: num,
+  investedCapital: num,
+
+  // Cash flow
+  operatingCashFlow: num,
+  investingCashFlow: num,
+  financingCashFlow: num,
+  freeCashFlow: num,
+  capitalExpenditure: num,
+  depreciationAmortization: num,
+  changeInWorkingCapital: num,
+  stockBasedCompensation: num,
+  dividendsPaid: num,
+  repurchaseOfCapitalStock: num,
+  issuanceOfCapitalStock: num,
+  repaymentOfDebt: num,
+  issuanceOfDebt: num,
+  netBusinessPurchaseAndSale: num,
+  beginningCashPosition: num,
+  endingCashPosition: num,
 });
 export type FinancialStatement = z.infer<typeof FinancialStatementSchema>;
 
@@ -1235,10 +1304,66 @@ export interface JintelClientCacheConfig {
   priceHistoryTtlMs?: number;
 }
 
+/**
+ * One x402 v2 payment option, as advertised by the server in the
+ * `PAYMENT-REQUIRED` header on a 402 response.
+ *
+ * Mirrors the `accepts[]` entries in the OpenAPI `X402Quote` schema at
+ * `https://api.jintel.ai/openapi.json`. Atomic `amount` is in the asset's
+ * smallest unit (USDC has 6 decimals on Base).
+ */
+export interface X402PaymentRequirements {
+  scheme: string;
+  /** CAIP-2 network identifier, e.g. `eip155:8453` for Base. */
+  network: string;
+  amount: string;
+  asset: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  extra?: Record<string, unknown>;
+}
+
+/**
+ * Parsed `X402Quote` envelope. Delivered base64-encoded in the
+ * `PAYMENT-REQUIRED` response header on a 402 from `POST /api/graphql`.
+ */
+export interface X402Quote {
+  x402Version: 2;
+  resource: { url: string; description?: string; mimeType?: string };
+  accepts: X402PaymentRequirements[];
+  error?: string;
+  extensions?: Record<string, unknown>;
+}
+
+/**
+ * Minimal `fetch` shape the client needs. Compatible with the global `fetch`
+ * and with payment middlewares like `x402-fetch`'s `wrapFetchWithPayment`.
+ */
+export type JintelFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
 export interface JintelClientConfig {
   /** API base URL. Defaults to https://api.jintel.ai/api */
   baseUrl?: string;
-  apiKey: string;
+  /**
+   * API key for Bearer auth. Optional when `fetch` is provided (e.g. an
+   * `x402-fetch`-wrapped fetch handles auth via on-chain payment instead).
+   * At least one of `apiKey` or `fetch` must be supplied.
+   */
+  apiKey?: string;
+  /**
+   * Custom `fetch` implementation. Pass an `x402-fetch`-wrapped fetch to
+   * pay per query in USDC on Base — the wrapper handles the 402 → sign →
+   * retry handshake transparently. Defaults to the global `fetch`.
+   *
+   * @example
+   * ```ts
+   * import { wrapFetchWithPayment } from 'x402-fetch';
+   * import { privateKeyToAccount } from 'viem/accounts';
+   * const account = privateKeyToAccount(process.env.WALLET_KEY as `0x${string}`);
+   * const client = new JintelClient({ fetch: wrapFetchWithPayment(fetch, account) });
+   * ```
+   */
+  fetch?: JintelFetch;
   timeout?: number;
   debug?: boolean;
   /**
@@ -1394,6 +1519,54 @@ export interface NewsFilterOptions extends ArraySubGraphOptions {
   minSentiment?: number;
   /** Only include articles with sentimentScore <= this value (-1 to +1). */
   maxSentiment?: number;
+}
+
+/**
+ * Filter for `Social.twitter` (TwitterFilterInput).
+ *
+ * Translated server-side into structured twit.sh query parameters; callers
+ * never write raw v2 operator DSL. When omitted, the server defaults to
+ * `cashtags: [<entity primary ticker>]`.
+ *
+ * Doesn't extend `ArraySubGraphOptions` because twit.sh has no `sort` arg
+ * (results are already newest-first per the sub-graphs.md contract) and
+ * `limit` clamps to twit.sh's fixed page size of 20.
+ */
+export interface TwitterFilterOptions {
+  /** All these words must appear in the tweet (joined with AND). */
+  words?: string[];
+  /** Exact phrase match. */
+  phrase?: string;
+  /** Any of these words must appear (joined with OR). */
+  anyWords?: string[];
+  /** Exclude tweets containing any of these words. */
+  noneWords?: string[];
+  /** Hashtags without leading `#`. */
+  hashtags?: string[];
+  /** Cashtags without leading `$` (uppercased automatically). Defaults to entity ticker when omitted. */
+  cashtags?: string[];
+  /** Tweets from this username (no `@`). */
+  fromUser?: string;
+  /** Tweets replying to this username (no `@`). */
+  toUser?: string;
+  /** Tweets mentioning this username (no `@`). */
+  mentioning?: string;
+  /** Minimum like count. */
+  minLikes?: number;
+  /** Minimum retweet count. */
+  minReposts?: number;
+  /** Minimum reply count. */
+  minReplies?: number;
+  /** ISO 8601 lower bound (inclusive). twit.sh covers a recent window only. */
+  since?: string;
+  /** ISO 8601 upper bound (exclusive). */
+  until?: string;
+  /** Drop retweets from results (default true when filter is omitted server-side). */
+  excludeRetweets?: boolean;
+  /** Drop reply tweets from results. */
+  excludeReplies?: boolean;
+  /** Cap result count (1–20; twit.sh page size). */
+  limit?: number;
 }
 
 /** Filter for `Entity.executives` (ExecutivesFilterInput). */
@@ -1652,6 +1825,8 @@ export interface EnrichOptions {
   optionsFilter?: OptionsChainFilterOptions;
   /** Filter for `Entity.news`. */
   newsFilter?: NewsFilterOptions;
+  /** Filter for `Social.twitter`. When omitted, server defaults to the entity's primary ticker as a cashtag. */
+  twitterFilter?: TwitterFilterOptions;
   /** Filter for `Entity.executives`. */
   executivesFilter?: ExecutivesFilterOptions;
   /** Filter for `Entity.insiderTrades`. */

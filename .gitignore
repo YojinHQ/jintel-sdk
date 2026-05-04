@@ -5,3 +5,8 @@ dist/
 .env
 .env.*
 !.env.example
+
+docs/
+
+benchmark/reports/
+benchmark/.cache/

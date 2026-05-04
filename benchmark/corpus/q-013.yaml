@@ -1,0 +1,14 @@
+id: q-013
+nl_question: |
+  By what percent did Tesla's total revenue change from fiscal Q1 2025 (quarter ended March 31, 2025)
+  to fiscal Q1 2026 (quarter ended March 31, 2026)?
+  Express as a percentage with sign (e.g., -5.2 for a 5.2% decrease).
+tags: [derived, financials, multi-period, live-data, post-cutoff, jintel-mcp-favored]
+expected:
+  field: tsla_revenue_yoy_pct_q1_2025_to_q1_2026
+  value: 15.78
+  unit: percent
+  source: https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001318605&type=10-Q
+comparison:
+  type: numeric_tolerance
+  tolerance_pct: 3.0

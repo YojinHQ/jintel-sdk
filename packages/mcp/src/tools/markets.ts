@@ -4,6 +4,8 @@ import type {
   OptionsChainFilterOptions,
   OptionsChainSort,
   OptionType,
+  ScreenFilterOptions,
+  ScreenUniverse,
   SP500Series,
 } from '@yojinhq/jintel-client';
 import type { ToolDefinition } from './types.js';
@@ -43,6 +45,16 @@ const SP500_SERIES: readonly SP500Series[] = [
   'SHILLER_PE_MONTH',
   'DIVIDEND_YIELD_MONTH',
   'EARNINGS_YIELD_MONTH',
+];
+const SCREEN_UNIVERSES: readonly ScreenUniverse[] = [
+  'MOST_ACTIVES',
+  'DAY_GAINERS',
+  'DAY_LOSERS',
+  'AGGRESSIVE_SMALL_CAPS',
+  'GROWTH_TECHNOLOGY_STOCKS',
+  'UNDERVALUED_LARGE_CAPS',
+  'UNDERVALUED_GROWTH_STOCKS',
+  'MOST_SHORTED',
 ];
 
 export function buildMarketsTools(client: JintelClient): ToolDefinition[] {
@@ -293,6 +305,83 @@ export function buildMarketsTools(client: JintelClient): ToolDefinition[] {
       },
       handler: async () => {
         return runTool(() => client.marketStatus());
+      },
+    },
+
+    {
+      name: 'jintel_screen',
+      bundle: 'markets' as const,
+      description:
+        'US equity screener — filter a predefined universe (most actives, day gainers/losers, small caps, etc.) by price, gap %, change %, relative volume, dollar volume, and market cap. Targets workflows like "scan pre-market with gap 2-4%, volume 2x average, share price > $5". Each result carries an `entity` gateway you can pass to `jintel_enrich` for technicals/fundamentals/news/etc. on the matched ticker. Sorted by `gapPercent` desc when a gap filter is set, otherwise by `dollarVolume` desc. **US equities only.**',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          universe: {
+            type: 'string',
+            enum: SCREEN_UNIVERSES,
+            description:
+              'Predefined universe to scan (default MOST_ACTIVES). Each list is capped at ~250 names. Pick the tightest pre-narrowed list for your scan — e.g. DAY_GAINERS for momentum, AGGRESSIVE_SMALL_CAPS for small-cap movers.',
+          },
+          minPrice: { type: 'number', description: 'Minimum share price (USD).' },
+          maxPrice: { type: 'number', description: 'Maximum share price (USD).' },
+          minGapPercent: {
+            type: 'number',
+            description:
+              'Minimum pre-market gap %, computed as (preMarketPrice - previousClose) / previousClose * 100. Tickers without pre-market data are excluded when this filter is set. Pre-market values can persist across sessions — gate on marketState (PRE / PREPRE) on the result for live signal.',
+          },
+          maxGapPercent: { type: 'number', description: 'Maximum pre-market gap %.' },
+          minChangePercent: { type: 'number', description: 'Minimum regular-session change %.' },
+          maxChangePercent: { type: 'number', description: 'Maximum regular-session change %.' },
+          minRelativeVolume: {
+            type: 'number',
+            description:
+              "Minimum relative volume (today's volume / 3-month average). e.g. 2.0 = 2x average. Tickers without average volume are excluded when set.",
+          },
+          minDollarVolume: { type: 'number', description: 'Minimum dollar volume today (volume × price, USD).' },
+          minMarketCap: { type: 'number', description: 'Minimum market cap (USD).' },
+          maxMarketCap: { type: 'number', description: 'Maximum market cap (USD).' },
+          limit: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 100,
+            description: 'Cap on returned results after filtering (default 25, max 100).',
+          },
+          offset: {
+            type: 'integer',
+            minimum: 0,
+            description:
+              'Skip this many filtered+sorted results before applying limit. Useful for paging beyond the first 100 hits within a 250-name universe.',
+          },
+        },
+        additionalProperties: false,
+      },
+      handler: async (args) => {
+        try {
+          const filter: ScreenFilterOptions = {};
+          const universe = asOptionalEnum(args.universe, 'universe', SCREEN_UNIVERSES);
+          if (universe) filter.universe = universe;
+          const numericKeys = [
+            'minPrice',
+            'maxPrice',
+            'minGapPercent',
+            'maxGapPercent',
+            'minChangePercent',
+            'maxChangePercent',
+            'minRelativeVolume',
+            'minDollarVolume',
+            'minMarketCap',
+            'maxMarketCap',
+            'limit',
+            'offset',
+          ] as const;
+          for (const k of numericKeys) {
+            const v = asOptionalNumber(args[k], k);
+            if (v !== undefined) (filter as Record<string, number>)[k] = v;
+          }
+          return runTool(() => client.screen(filter));
+        } catch (err) {
+          return fail(errorMessage(err));
+        }
       },
     },
 

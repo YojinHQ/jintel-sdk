@@ -875,6 +875,33 @@ export const MARKET_STATUS = `
     }
   }`;
 
+export const SCREEN = `
+  query Screen($filter: ScreenFilterInput) {
+    screen(filter: $filter) {
+      ticker
+      name
+      exchange
+      price
+      previousClose
+      changePercent
+      volume
+      averageDailyVolume3M
+      relativeVolume
+      preMarketPrice
+      preMarketChangePercent
+      gapPercent
+      dollarVolume
+      marketCap
+      marketState
+      entity {
+        id
+        name
+        type
+        tickers
+      }
+    }
+  }`;
+
 export const MACRO_SERIES = `
   query MacroSeries($seriesId: String!, $filter: ArrayFilterInput) {
     macroSeries(seriesId: $seriesId) {

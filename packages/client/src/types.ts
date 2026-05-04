@@ -812,6 +812,51 @@ export const USMarketStatusSchema = z.object({
 });
 export type USMarketStatus = z.infer<typeof USMarketStatusSchema>;
 
+// ── Screener ────────────────────────────────────────────────────────────
+
+/** Predefined market-data universes the screener can scan. */
+export const ScreenUniverseSchema = z.enum([
+  'MOST_ACTIVES',
+  'DAY_GAINERS',
+  'DAY_LOSERS',
+  'AGGRESSIVE_SMALL_CAPS',
+  'GROWTH_TECHNOLOGY_STOCKS',
+  'UNDERVALUED_LARGE_CAPS',
+  'UNDERVALUED_GROWTH_STOCKS',
+  'MOST_SHORTED',
+]);
+export type ScreenUniverse = z.infer<typeof ScreenUniverseSchema>;
+
+/**
+ * A single screener match — quote-shaped snapshot plus computed gap /
+ * relative-volume metrics. The `entity` field is a gateway into the full
+ * Entity sub-graph (technicals, fundamentals, news, etc.).
+ */
+export const ScreenResultSchema = z.object({
+  ticker: z.string(),
+  name: z.string().nullable().optional(),
+  exchange: z.string().nullable().optional(),
+  price: z.number().nullable().optional(),
+  previousClose: z.number().nullable().optional(),
+  changePercent: z.number().nullable().optional(),
+  volume: z.number().nullable().optional(),
+  averageDailyVolume3M: z.number().nullable().optional(),
+  relativeVolume: z.number().nullable().optional(),
+  preMarketPrice: z.number().nullable().optional(),
+  preMarketChangePercent: z.number().nullable().optional(),
+  gapPercent: z.number().nullable().optional(),
+  dollarVolume: z.number().nullable().optional(),
+  marketCap: z.number().nullable().optional(),
+  marketState: z.string().nullable().optional(),
+  entity: z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+    tickers: z.array(z.string()).nullable().optional(),
+  }),
+});
+export type ScreenResult = z.infer<typeof ScreenResultSchema>;
+
 // ── SEC Form 4 Insider Trades ─────────────────────────────────────────────
 
 export const InsiderTradeSchema = z.object({
@@ -1576,6 +1621,44 @@ export interface SegmentRevenueFilterOptions extends ArraySubGraphOptions {
 export interface FinancialStatementFilterOptions extends ArraySubGraphOptions {
   /** Restrict to period-type codes as reported upstream (e.g. `['12M']` for annual only, `['3M']` for quarterly only). */
   periodTypes?: string[];
+}
+
+/**
+ * Filter for the root `screen` query (ScreenFilterInput). Targets workflows
+ * like "scan pre-market with gap 2-4%, volume 2x average, share price > $5".
+ *
+ * Tickers without pre-market data are excluded when a gap filter is set;
+ * tickers without average volume are excluded when minRelativeVolume is set.
+ * Yahoo persists pre-market values across sessions — gate on `marketState`
+ * (`PRE` / `PREPRE`) on the result for live pre-market signal.
+ */
+export interface ScreenFilterOptions {
+  /** Predefined universe to scan (default MOST_ACTIVES). Each list is capped at ~250 names. */
+  universe?: ScreenUniverse;
+  /** Minimum share price (USD). */
+  minPrice?: number;
+  /** Maximum share price (USD). */
+  maxPrice?: number;
+  /** Minimum pre-market gap % vs previous close. */
+  minGapPercent?: number;
+  /** Maximum pre-market gap %. */
+  maxGapPercent?: number;
+  /** Minimum regular-session change %. */
+  minChangePercent?: number;
+  /** Maximum regular-session change %. */
+  maxChangePercent?: number;
+  /** Minimum relative volume (today's volume / 3-month average). e.g. 2.0 = 2x average. */
+  minRelativeVolume?: number;
+  /** Minimum dollar volume today (volume × price, USD). */
+  minDollarVolume?: number;
+  /** Minimum market cap (USD). */
+  minMarketCap?: number;
+  /** Maximum market cap (USD). */
+  maxMarketCap?: number;
+  /** Cap on returned results (default 25, max 100). */
+  limit?: number;
+  /** Skip this many filtered+sorted results before applying limit. */
+  offset?: number;
 }
 
 /** Filter for sanctions matches (`RegulatoryData.sanctions` and root `sanctionsScreen`). */

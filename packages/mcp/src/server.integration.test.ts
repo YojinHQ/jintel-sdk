@@ -4,7 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createJintelMcpServer } from './server.js';
 
-const TOTAL_TOOLS = 42; // 41 domain tools + jintel_load_bundle
+const TOTAL_TOOLS = 43; // 42 domain tools + jintel_load_bundle
 
 describe('dynamic mode integration', () => {
   afterEach(() => {

@@ -102,6 +102,9 @@ export {
   // Market Status
   MarketSessionSchema,
   USMarketStatusSchema,
+  // Screener
+  ScreenUniverseSchema,
+  ScreenResultSchema,
   // Response
   GraphQLErrorSchema,
   GraphQLResponseSchema,
@@ -176,6 +179,8 @@ export type {
   MacroObservation,
   MarketSession,
   USMarketStatus,
+  ScreenUniverse,
+  ScreenResult,
   GraphQLError,
   GraphQLResponse,
   JintelClientConfig,
@@ -194,6 +199,7 @@ export type {
   TopHoldersFilterOptions,
   FinancialStatementFilterOptions,
   SanctionsFilterOptions,
+  ScreenFilterOptions,
   CampaignFinanceFilterOptions,
   ClinicalTrialFilterOptions,
   FdaEventFilterOptions,
@@ -231,6 +237,7 @@ export {
   CAMPAIGN_FINANCE,
   INSTITUTIONAL_HOLDINGS,
   MARKET_STATUS,
+  SCREEN,
   MACRO_SERIES,
   MACRO_SERIES_BATCH,
   // Dynamic builders

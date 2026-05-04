@@ -19,6 +19,7 @@ Core commands:
   sanctions <name>                 Sanctions screening
   price-history <tickers>          OHLCV candles (batch)
   market-status                    US market session status
+  screen                           Filter US equities by gap %, RVOL, price, mcap (predefined universe)
 
 Per-entity sub-graphs (one ticker each):
   news <ticker>                    Recent news articles
@@ -77,6 +78,7 @@ const SUBCOMMAND_HELP: Record<string, string> = {
   sanctions: cmd.SANCTIONS_HELP,
   "price-history": cmd.PRICE_HISTORY_HELP,
   "market-status": cmd.MARKET_STATUS_HELP,
+  screen: cmd.SCREEN_HELP,
   "short-interest": cmd.SHORT_INTEREST_HELP,
   "campaign-finance": cmd.CAMPAIGN_FINANCE_HELP,
   "institutional-holdings": cmd.INSTITUTIONAL_HOLDINGS_HELP,
@@ -150,6 +152,8 @@ export async function run(argv: string[]): Promise<ExitCode> {
       return cmd.runPriceHistory(opts);
     case "market-status":
       return cmd.runMarketStatus(opts);
+    case "screen":
+      return cmd.runScreen(opts);
     case "short-interest":
       return cmd.runShortInterest(opts);
     case "campaign-finance":

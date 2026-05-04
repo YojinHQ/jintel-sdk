@@ -8,6 +8,7 @@ import {
   SHORT_INTEREST,
   CAMPAIGN_FINANCE,
   MARKET_STATUS,
+  SCREEN,
   INSTITUTIONAL_HOLDINGS,
   GDP,
   INFLATION,
@@ -42,6 +43,8 @@ import type {
   RequestOptions,
   SanctionsFilterOptions,
   SanctionsMatch,
+  ScreenFilterOptions,
+  ScreenResult,
   ShortInterestReport,
   SP500DataPoint,
   SP500Series,
@@ -747,6 +750,31 @@ export class JintelClient {
     try {
       const data = await this.request<USMarketStatus>(MARKET_STATUS, undefined, { key: 'marketStatus' });
       return { success: true, data };
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  /**
+   * US equity screener — filter a predefined universe (most actives, day
+   * gainers/losers, small caps, etc.) by price, gap %, change %, relative
+   * volume, dollar volume, and market cap. Targets workflows like *"scan
+   * pre-market with gap 2-4%, volume 2x average, share price > $5"*.
+   *
+   * Each `ScreenResult` carries an `entity` gateway (`{ id, name, type,
+   * tickers }`) — pass it to `enrich()` / `enrichBatch()` to fan out into
+   * the full Entity sub-graph (technicals, fundamentals, news, etc.)
+   * without a second round trip to look up the ticker.
+   *
+   * Results are sorted by `gapPercent` desc when a gap filter is set,
+   * otherwise by `dollarVolume` desc.
+   */
+  async screen(filter?: ScreenFilterOptions): Promise<JintelResult<ScreenResult[]>> {
+    try {
+      const variables: Record<string, unknown> = {};
+      if (filter) variables.filter = filter;
+      const data = await this.request<ScreenResult[]>(SCREEN, variables, { key: 'screen' });
+      return { success: true, data: data ?? [] };
     } catch (err) {
       return this.handleError(err);
     }

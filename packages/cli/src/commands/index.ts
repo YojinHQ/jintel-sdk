@@ -8,6 +8,7 @@ export { runEnrich, ENRICH_HELP } from "./enrich.js";
 export { runSanctions, SANCTIONS_HELP } from "./sanctions.js";
 export { runPriceHistory, PRICE_HISTORY_HELP } from "./price-history.js";
 export { runMarketStatus, MARKET_STATUS_HELP } from "./market-status.js";
+export { runScreen, SCREEN_HELP } from "./screen.js";
 export { runShortInterest, SHORT_INTEREST_HELP } from "./short-interest.js";
 export {
   runCampaignFinance,

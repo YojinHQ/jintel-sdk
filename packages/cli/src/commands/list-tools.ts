@@ -64,6 +64,7 @@ async function buildDescriptors(): Promise<ToolDescriptor[]> {
     ["sanctions", c.SANCTIONS_HELP],
     ["price-history", c.PRICE_HISTORY_HELP],
     ["market-status", c.MARKET_STATUS_HELP],
+    ["screen", c.SCREEN_HELP],
     ["short-interest", c.SHORT_INTEREST_HELP],
     ["campaign-finance", c.CAMPAIGN_FINANCE_HELP],
     ["institutional-holdings", c.INSTITUTIONAL_HOLDINGS_HELP],

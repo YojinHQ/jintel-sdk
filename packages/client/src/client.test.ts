@@ -111,3 +111,58 @@ describe('Response cache isolates asOf buckets', () => {
     expect(captured).toHaveLength(1);
   });
 });
+
+describe('JintelClient.screen', () => {
+  it('sends the filter as a GraphQL variable', async () => {
+    const client = new JintelClient({ apiKey: 'test', baseUrl: 'http://x/api' });
+    await client.screen({
+      universe: 'MOST_ACTIVES',
+      minPrice: 5,
+      minGapPercent: 2,
+      maxGapPercent: 4,
+      minRelativeVolume: 2,
+      limit: 25,
+    });
+    expect(captured).toHaveLength(1);
+    const body = captured[0].body;
+    expect(body.query).toContain('screen(filter: $filter)');
+    expect(body.query).toContain('$filter: ScreenFilterInput');
+    expect(body.variables?.filter).toEqual({
+      universe: 'MOST_ACTIVES',
+      minPrice: 5,
+      minGapPercent: 2,
+      maxGapPercent: 4,
+      minRelativeVolume: 2,
+      limit: 25,
+    });
+  });
+
+  it('omits the filter variable when called with no args', async () => {
+    const client = new JintelClient({ apiKey: 'test', baseUrl: 'http://x/api' });
+    await client.screen();
+    expect(captured).toHaveLength(1);
+    expect(captured[0].body.variables?.filter).toBeUndefined();
+  });
+
+  it('selects the entity gateway so callers can chain enrichment', async () => {
+    const client = new JintelClient({ apiKey: 'test', baseUrl: 'http://x/api' });
+    await client.screen();
+    const q = captured[0].body.query;
+    expect(q).toContain('entity {');
+    expect(q).toContain('tickers');
+  });
+
+  it('returns an empty array on null upstream payload', async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ data: { screen: null } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const client = new JintelClient({ apiKey: 'test', baseUrl: 'http://x/api' });
+    const result = await client.screen();
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toEqual([]);
+  });
+});

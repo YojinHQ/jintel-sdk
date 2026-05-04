@@ -39,6 +39,7 @@ All 11 tools are prefixed `jintel_`:
 | `jintel_institutional_holdings` | 13F institutional holdings by filer CIK |
 | `jintel_fama_french` | Fama-French 3/5-factor returns (quant research) |
 | `jintel_market_status` | Is the US market open right now? |
+| `jintel_screen` | Filter US equities by gap %, RVOL, price, mcap (e.g. "scan pre-market with gap 2-4%, volume 2x") |
 
 ## Workflows
 
